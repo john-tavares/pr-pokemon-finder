@@ -2,10 +2,12 @@
 
 Turn your GitHub pull requests into Pokémon encounters inside Visual Studio Code.
 
-**Status: pre-release / PR monitoring prototype.** US-01 through US-05 are implemented:
+**Status: pre-release / capture synchronization prototype.** US-01 through US-06 are implemented:
 native sign-in, API access, cross-repository discovery, and automatic polling with
-a pending-encounter queue and canonical PR identities. There is no Marketplace release yet. Pokémon generation,
-capture processing, and the Pokédex remain planned.
+a canonical PR index and idempotent automatic captures. Each eligible new PR now
+receives a deterministic species number, persisted before any presentation.
+There is no Marketplace release yet. Sprites, retro encounter/capture animations,
+automatic visual feedback, and the Pokédex screen remain planned.
 
 ## Try GitHub authentication
 
@@ -51,7 +53,7 @@ update, and closure dates. Discovery is an explicit snapshot, not background
 monitoring or durable storage. Search results are paginated up to GitHub's
 1,000-result limit. Partial, shifting, or capped results show a warning and must not
 be interpreted as a complete history. GitHub search indexing and access restrictions
-can also affect results. Merge processing comes in a later story.
+can also affect results. Merge and closure are metadata, not reward events.
 
 Public repositories are the default. To include private repositories, run
 **PR Pokémon Finder: Enable Private Repository Access**. The command explains
@@ -69,12 +71,13 @@ manage those through VS Code Accounts/GitHub. Tokens remain managed by VS Code.
 Once connected, the extension checks authored PRs immediately and then waits
 60 seconds after each completed check before running again. It works in an empty
 window and across repositories. Use **Show Monitoring Status**, **Check for New
-Pull Requests Now**, and **Show Pending Encounters** from the Command Palette.
+Pull Requests Now**, and **Show Pending Capture Presentations** from the Command Palette.
 
 The first successful query in each access mode establishes its starting reference: historical
 PRs are recorded as known, and unseen PRs created since that query began enter
-a pending-encounter queue. This includes PRs closed between checks. The small
-account-scoped index and queue survive restarts in VS Code global storage. API
+a capture ledger. This includes PRs closed between checks: opening the PR is the
+reward event, not merging it. The account-scoped index, captures, and presentation
+queue survive restarts in the extension's local global storage. API
 errors and incomplete search results never erase known records. Partial results
 remain visibly flagged; search indexing can delay detection or miss capped results.
 
@@ -83,19 +86,27 @@ shutdown. It never starts an interactive login in the background. Rate-limit
 responses extend the next delay. Change **Polling: Enabled** or **Polling: Interval
 Seconds** in PR Pokémon Finder Settings (60–3600 seconds).
 
-The queue prepares new PRs for later Pokémon generation; it does not generate or
-capture Pokémon yet. Saved private-mode queue entries are hidden in public-only
-mode, but disabling private access does not delete them. The current index is
-intended for one active monitoring window; cross-window coordination and full
-encounter persistence remain follow-up work.
+The initial assignment uses species numbers 1–151 with a versioned deterministic
+seed. There is no rarity or Shiny selection yet. **Show Pending Capture
+Presentations** lists the species number and originating PR; selecting it opens
+GitHub, not an animation, and does not mark the presentation as shown. Captures
+are already saved, while the visual presenter is still to be implemented.
+Private-mode captures are hidden in public-only mode but are not deleted.
+
+Local writes are serialized across monitoring windows with an exclusive file lock
+and atomic snapshot replacement. A busy writer retries on its next poll without
+overwriting another window. A process crash can leave a lock requiring manual
+recovery; see [storage troubleshooting](docs/development.md#storage-recovery).
+Do not run older extension builds against the same profile after migrating.
 
 ## Planned experience
 
 - Discover your pull requests across repositories, independently of the open workspace.
 - Encounter a Pokémon when a new pull request is discovered.
-- Capture it when the pull request is merged; mark it as escaped when closed without merging.
-- Keep encounters and a shared Pokédex locally across workspaces.
-- Show encounters, captures, notifications, and later animations and achievements.
+- Capture it immediately, independently of later merge or closure; no fleeing or capture failure.
+- Present a retro pixel-art encounter followed by a guaranteed capture animation as a core feature.
+- Keep captures and a shared Pokédex locally across workspaces.
+- Add collection screens, rare encounters, opening-PR streaks, and achievements.
 
 The planned implementation uses TypeScript, native VS Code GitHub authentication,
 direct GitHub API requests, polling, and local extension storage. It requires no
@@ -118,7 +129,7 @@ Development requires Node.js 24; the extension supports desktop VS Code 1.95.0 o
 newer. Run `pnpm build` to compile TypeScript, `pnpm test:extension` for an isolated
 Extension Host smoke test, or `pnpm package` to produce
 `dist/pr-pokemon-finder.vsix`. Install that file using **Extensions: Install from
-VSIX...**. It contains authentication, API lookup, discovery, and polling.
+VSIX...**. It contains authentication, API lookup, discovery, polling, and the capture ledger.
 
 ## Contribute
 

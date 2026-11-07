@@ -12,6 +12,8 @@ import {
 } from '../../src/polling/controller';
 import {
   decodeIndex,
+  capturePending,
+  markPresentationShown,
   reconcilePolling,
   type PollingIndex,
 } from '../../src/polling/index';
@@ -61,6 +63,14 @@ class Store implements PollingStore {
     this.entries.set(id, structuredClone(index));
     this.writes++;
   }
+  async update(
+    id: number,
+    transform: (value: unknown) => PollingIndex | undefined,
+  ) {
+    const next = transform(this.read(id));
+    if (next) await this.write(id, next);
+    return next;
+  }
 }
 class Timer {
   callbacks: { run: () => void; delay: number; canceled: boolean }[] = [];
@@ -84,6 +94,213 @@ class Timer {
   }
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test('capture and presentation intent are distinct and repeated snapshots preserve immutable rewards', () => {
+  const first = capturePending(
+    reconcilePolling(empty(), batch([pr(1)]), false, start).index,
+    start,
+  );
+  assert.equal(first.pending.length, 0);
+  assert.equal(first.captures.length, 1);
+  assert.deepEqual(first.presentations, [
+    { key: pullRequestKey(pr(1)), status: 'pending' },
+  ]);
+  const original = structuredClone(first.captures[0]);
+  for (const state of ['open', 'closed', 'open'] as const) {
+    const next = capturePending(
+      reconcilePolling(
+        first,
+        batch([
+          { ...pr(1), state, mergedAt: state === 'closed' ? later : null },
+        ]),
+        false,
+        later,
+      ).index,
+      later,
+    );
+    assert.deepEqual(next.captures, [original]);
+    assert.deepEqual(next.presentations, first.presentations);
+  }
+  assert.deepEqual(decodeIndex(JSON.parse(JSON.stringify(first))), first);
+});
+
+test('presentation acknowledgement persists once and never changes or removes its capture', () => {
+  const first = capturePending(
+    reconcilePolling(empty(), batch([pr(1)]), false, start).index,
+    start,
+  );
+  const shown = markPresentationShown(first, pullRequestKey(pr(1)), later);
+  assert.deepEqual(shown.captures, first.captures);
+  assert.deepEqual(shown.presentations, [
+    { key: pullRequestKey(pr(1)), status: 'shown', shownAt: later },
+  ]);
+  assert.deepEqual(
+    markPresentationShown(shown, pullRequestKey(pr(1)), before),
+    shown,
+  );
+  assert.equal(
+    markPresentationShown(first, pullRequestKey(pr(2)), later),
+    first,
+  );
+  assert.throws(() =>
+    markPresentationShown(first, pullRequestKey(pr(1)), 'bad'),
+  );
+  const restored = decodeIndex(JSON.parse(JSON.stringify(shown)));
+  assert.deepEqual(
+    capturePending(
+      reconcilePolling(restored, batch([pr(1)]), false, later).index,
+      later,
+    ),
+    shown,
+  );
+});
+
+test('v2 queued references migrate without backfilling historical known PRs', () => {
+  const current = reconcilePolling(
+    empty(),
+    batch([pr(1), pr(2, before)]),
+    false,
+    start,
+  ).index;
+  const {
+    captures: _captures,
+    presentations: _presentations,
+    ...old
+  } = current;
+  const migrated = capturePending(decodeIndex({ ...old, version: 2 }), later);
+  assert.equal(migrated.captures.length, 1);
+  assert.equal(migrated.captures[0]?.source.detectedAt, start);
+  assert.equal(migrated.captures[0]?.key, pullRequestKey(pr(1)));
+  assert.deepEqual(migrated.baselines, current.baselines);
+});
+
+test('v3 rejects corrupt, orphaned or duplicated capture/presentation records', () => {
+  const index = capturePending(
+    reconcilePolling(empty(), batch([pr(1)]), false, start).index,
+    start,
+  );
+  const capture = index.captures[0]!;
+  for (const change of [
+    { captures: null },
+    { presentations: null },
+    { captures: [capture, capture] },
+    { captures: [{ ...capture, key: pullRequestKey(pr(2)) }] },
+    { captures: [{ ...capture, capturedAt: 'bad' }] },
+    {
+      captures: [{ ...capture, pokemon: { ...capture.pokemon, speciesId: 0 } }],
+    },
+    {
+      captures: [
+        { ...capture, pokemon: { ...capture.pokemon, algorithm: 'future' } },
+      ],
+    },
+    { presentations: [] },
+    { presentations: [...index.presentations, ...index.presentations] },
+    { presentations: [{ key: pullRequestKey(pr(2)), status: 'pending' }] },
+    { presentations: [{ key: capture.key, status: 'shown', shownAt: 'bad' }] },
+    { pending: [capture.source] },
+    { known: [] },
+  ])
+    assert.throws(() => decodeIndex({ ...index, ...change }));
+  assert.throws(() => decodeIndex({ ...index, version: 999 }));
+});
+
+test('controller exposes captures only after commit and never replays acknowledged presentations after restart', async () => {
+  const store = new Store();
+  const timer = new Timer();
+  const controller = new PollingController(
+    async () => batch([pr(1)]),
+    store,
+    () => {},
+    timer.schedule,
+    () => Date.parse(start),
+  );
+  controller.configure(enabled);
+  await controller.pollNow();
+  const key = pullRequestKey(pr(1));
+  assert.equal(controller.status.captureCount, 1);
+  assert.equal(controller.pendingCaptures.length, 1);
+  assert.equal(decodeIndex(store.read(123)).captures.length, 1);
+  const copy = controller.pendingCaptures as unknown as {
+    pokemon: { speciesId: number };
+  }[];
+  copy[0]!.pokemon.speciesId = 999;
+  assert.notEqual(controller.pendingCaptures[0]?.pokemon.speciesId, 999);
+  await controller.confirmPresentation(key);
+  assert.equal(controller.pendingCaptures.length, 0);
+  controller.dispose();
+  const restored = new PollingController(
+    async () => batch([{ ...pr(1), state: 'closed', mergedAt: later }]),
+    store,
+    () => {},
+    timer.schedule,
+    () => Date.parse(later),
+  );
+  restored.configure(enabled);
+  await restored.pollNow();
+  assert.equal(restored.status.captureCount, 1);
+  assert.equal(restored.status.pendingCount, 0);
+  restored.dispose();
+});
+
+test('failed capture/acknowledgement writes preserve durable rewards and pending presentation for retry', async () => {
+  const store = new Store();
+  const timer = new Timer();
+  const controller = new PollingController(
+    async () => batch([pr(1)]),
+    store,
+    () => {},
+    timer.schedule,
+    () => Date.parse(start),
+  );
+  store.fail = true;
+  controller.configure(enabled);
+  await controller.pollNow();
+  assert.equal(controller.pendingCaptures.length, 0);
+  assert.equal(store.read(123), undefined);
+  store.fail = false;
+  await controller.pollNow();
+  const capture = structuredClone(decodeIndex(store.read(123)).captures[0]);
+  store.fail = true;
+  await assert.rejects(controller.confirmPresentation(pullRequestKey(pr(1))));
+  assert.equal(controller.pendingCaptures.length, 1);
+  assert.deepEqual(decodeIndex(store.read(123)).captures[0], capture);
+  store.fail = false;
+  await controller.confirmPresentation(pullRequestKey(pr(1)));
+  assert.equal(controller.pendingCaptures.length, 0);
+  controller.dispose();
+});
+
+test('account/scope changes hide captures and discard acknowledgements waiting on storage', async () => {
+  const store = new Store();
+  const timer = new Timer();
+  const controller = new PollingController(
+    async () => batch([pr(1)]),
+    store,
+    () => {},
+    timer.schedule,
+    () => Date.parse(start),
+  );
+  controller.configure(enabled);
+  await controller.pollNow();
+  const saved = structuredClone(store.read(123));
+  let finish!: () => void;
+  const update = store.update.bind(store);
+  store.update = async (id, transform) => {
+    await new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    return update(id, transform);
+  };
+  const confirming = controller.confirmPresentation(pullRequestKey(pr(1)));
+  controller.configure({ ...enabled, active: false });
+  finish();
+  await confirming;
+  assert.equal(controller.pendingCaptures.length, 0);
+  assert.equal(controller.status.captureCount, 0);
+  assert.deepEqual(store.read(123), saved);
+  controller.dispose();
+});
 
 test('same PR number across repositories stays distinct and repeat/case changes do not requeue', () => {
   const first = pr(1);
@@ -124,7 +341,7 @@ test('v1 migration preserves pending records, baselines and unseen legacy histor
     baselines: { private: start },
   };
   const migrated = decodeIndex(legacy);
-  assert.equal(migrated.version, 2);
+  assert.equal(migrated.version, 3);
   assert.deepEqual(migrated.pending, [pending]);
   assert.deepEqual(migrated.legacyKnownIds, [2, 3]);
   assert.deepEqual(migrated.baselines, legacy.baselines);
@@ -361,7 +578,7 @@ test('controller commits migrated history only after successful storage and pres
       assert.equal(controller.pendingEncounters.length, 0);
     } else {
       const saved = decodeIndex(store.read(123));
-      assert.equal(saved.version, 2);
+      assert.equal(saved.version, 3);
       assert.deepEqual(saved.legacyKnownIds, [2]);
       assert.equal(controller.status.knownCount, 3);
       assert.deepEqual(
@@ -541,7 +758,7 @@ test('public mode hides encounters detected in private mode while preserving the
   controller.configure(enabled);
   await controller.pollNow();
   assert.equal(controller.pendingEncounters.length, 0);
-  assert.equal(decodeIndex(store.read(123)).pending.length, 1);
+  assert.equal(decodeIndex(store.read(123)).captures.length, 1);
   controller.dispose();
 });
 

@@ -3,7 +3,8 @@
 US-01 implements native GitHub authentication; US-02 adds authenticated HTTPS
 API access; US-03 adds cross-repository discovery and optional private consent;
 US-04 adds automatic polling and a minimal pending-encounter index; US-05 adds canonical
-PR identities and an index migration. Other components below
+PR identities and an index migration. US-06 adds idempotent captures, separate
+presentation state, and transactional local storage. Other components below
 remain planned. Capture design changes in a public issue or PR and update this
 document with them.
 
@@ -67,8 +68,8 @@ The service never inspects workspace folders, Git remotes, or a repository allow
 Search pages run sequentially, up to 100 items per page and ten pages. A batch
 records host, API ID, owner, repository, number, URL, title, open/closed state, and
 created/updated/closed timestamps. Optional merge dates are preserved when present;
-an omitted merge date is unknown, not proof of an unmerged closure. Stable merge
-transition handling belongs to US-07. No per-PR hydration is needed during discovery.
+an omitted merge date is unknown, not proof of an unmerged closure. Merge/closure
+do not affect capture rewards. No per-PR hydration is needed during discovery.
 
 Results carry the reported total and a completeness flag. Incomplete responses,
 changing totals, duplicate/short pages, or the 1,000-item ceiling prevent claiming
@@ -104,25 +105,21 @@ Background errors never open authentication dialogs. Rate limits extend the dela
 index. Each public/private access mode gets a baseline at its first successful
 query's start time. Unknown PRs older than that cutoff become known without
 retroactive encounters. Unknown PRs created since the cutoff queue pending
-encounters automatically, including PRs already closed when first observed.
+encounters internally, including PRs already closed when first observed. The same
+transaction consumes these pending references into immutable captures (US-06).
 Known canonical keys are shared across access modes, preventing requeueing when scopes change.
 Missing results are never interpreted as deletion. Partial results can add known
 records while retaining all previous records and showing a partial status.
 
-`src/polling/vscode-polling.ts` adapts VS Code settings, authentication state,
-timers, status/queue commands, and `globalState`. Keys use the GitHub account ID;
-schema version 2 stores canonical keys, retained legacy API IDs, separate scope baselines, and minimal pending
-references/detection timestamps. Tokens, raw API bodies, and workspace paths are
-not stored. No keys are enrolled in Settings Sync. Public-only mode hides pending
-records discovered in private mode; this conservatively includes public PRs first
-seen with private access enabled.
+`src/polling/vscode-polling.ts` adapts settings, authentication, status/queue
+commands, and the transactional file store. Public-only mode hides captures and
+presentations discovered in private mode; this conservatively includes public PRs
+first seen with private access enabled. No tokens, raw API bodies, or workspace
+paths are persisted and no data is enrolled in Settings Sync.
 
 Storage failures or unknown/corrupt schemas are surfaced without resetting data.
-State is persisted before publishing a successful check. The queue is preparation
-for US-09; Pokémon generation, merge/escape transitions, collection UI, and full
-encounter storage are not implemented here. The first implementation targets one
-active polling window; it does not provide an inter-process storage lock. Cross-window
-coordination belongs with stronger synchronization/idempotency work.
+State is persisted before publishing a successful check. Collection UI and the
+retro pixel-art presenter are still planned. No merge/escape transition is needed.
 
 ## Implemented PR identity
 
@@ -144,11 +141,58 @@ metadata to derive keys immediately, preserving their detection timestamps and
 access modes. Historical records with only API IDs remain in `legacyKnownIds`
 until rediscovered; their canonical keys are then recorded without requeueing.
 Unseen legacy history and scope baselines are retained. Known counts include both
-keyed records and unresolved legacy IDs. The original `polling.v1.account.<id>`
-storage slot is intentionally retained; the embedded schema is now v2. Migration
-is written only as part of a successful polling commit, so failures do not erase
-the old data. Older extension builds reject v2 rather than reset it; downgrade
-migration is not provided. Corrupt or future schemas remain untouched.
+keyed records and unresolved legacy IDs. US-05 introduced schema v2; US-06 reads
+both v1 and v2 from the original `polling.v1.account.<id>` globalState slot when
+no authoritative file exists, then commits schema v3 to local global storage.
+The old globalState value is left untouched as a migration backup. An existing
+corrupt file is never replaced by legacy data. Do not downgrade to older builds:
+they cannot see the newer authoritative file and may show stale data.
+
+## Idempotent captures and presentation boundary
+
+The same canonical key identifies a known PR, its capture, and its presentation
+intent. Schema v3 adds immutable `captures` and separate `presentations` arrays.
+A capture includes its source reference, assigned species/algorithm, and capture
+timestamp. Presentation status is `pending` or `shown`; only shown records carry
+an acknowledgement time. Every capture has exactly one presentation record.
+Neither merge, closure, reopening, repeated polling, nor an absent search result
+can reassign or remove the reward. V1/v2 queued references become captures at the
+first successful v3 commit; historical known-only records are not backfilled.
+
+`src/captures/assignment.ts` uses SHA-256 of `sha256-kanto-v1`, a newline, and the
+canonical key; the full digest modulo 151 plus one selects a species number.
+The initial pool is 1–151, without names, graphics, rarity, or Shiny variants.
+Assignment is a small prerequisite of capture idempotency, not the complete US-09
+experience. Existing stored assignments are validated and retained, not recomputed.
+
+The controller exposes pending captures only after the transaction commits.
+`confirmPresentation` records acknowledgement separately and preserves the reward
+even if acknowledgement storage fails. It is an internal presenter integration
+point, not an exported extension API or command. Opening a PR from the native
+picker does not acknowledge it. There is no automatic presenter yet, so pending
+scenes remain pending. A future presenter must acknowledge an actually displayed
+or deliberately dismissed scene and coordinate a single presentation consumer
+across windows; the writer lock alone does not claim an in-progress animation.
+An interrupted scene before acknowledgement can be retried; an acknowledged one
+is not automatically replayed. Exactly-once rendering across an abrupt crash
+between display and acknowledgement is not promised.
+
+## Transactional local storage
+
+`src/polling/file-store.ts` serializes read/transform/write with an exclusive
+`account-<id>.json.lock` file under `globalStorageUri/sync`. Every writer rereads
+the latest account file inside the lock. It writes a unique temporary snapshot,
+syncs the file, closes it, and atomically renames it over the previous snapshot.
+No remote I/O or UI runs while holding this lock. Cancellation is rechecked inside
+the transform after asynchronous reads. Different accounts have separate files.
+
+A busy lock fails safely as `storage-error`; the next poll retries from committed
+state, preventing lost updates across extension windows. Migration/read/validation/
+write failures do not publish new captures or erase the prior snapshot. This is
+local-filesystem process-crash protection, not a database or a power-loss guarantee.
+The directory should not be shared over a network filesystem or synchronized
+between machines. Orphan locks are deliberately not stolen based on timestamps
+or PIDs; recovery requires closing all writers first (development guide).
 
 ## Boundaries
 
@@ -157,9 +201,9 @@ migration is not provided. Corrupt or future schemas remain untouched.
 | Extension entry point | Activate components, register commands, and dispose subscriptions/timers                |
 | GitHub client         | Use the VS Code session, query PRs, map API data, and handle pagination and rate limits |
 | Synchronization       | Discover PRs, reconcile known records, and emit real state transitions                  |
-| Encounter domain      | Deterministic assignment and encounter/capture/escape rules                             |
+| Encounter domain      | Deterministic assignment and guaranteed capture on new PR                               |
 | Local storage         | Global data across workspaces, schema versioning, and migrations                        |
-| Presentation          | Encounters, Pokédex, notifications, and optional animations                             |
+| Presentation          | Core retro encounter/capture animations, Pokédex, and coordinated feedback              |
 
 Keep these responsibilities separate. The domain must not depend on webviews or
 live GitHub calls. Inject clocks, storage, and API adapters where tests need control.
@@ -169,12 +213,12 @@ live GitHub calls. Inject clocks, storage, and API adapters where tests need con
 1. Obtain a native VS Code GitHub authentication session.
 2. Discover eligible PRs independently of workspace Git remotes.
 3. Compare remote results with persisted records using a stable global PR identity.
-4. Create encounters or apply transitions idempotently.
-5. Persist state before presenting a capture or encounter.
-6. Refresh views and issue appropriate notifications.
+4. Assign and record a guaranteed capture once per eligible new PR.
+5. Persist the capture and pending presentation together.
+6. Present a retro encounter/capture sequence, acknowledge it, and refresh views.
 
-Planned states are `ACTIVE` for an open PR, `CAPTURED` after merge, and `ESCAPED`
-after closing without merge. A reopened PR policy still needs a documented decision.
+Product decision (2026-11-07): there are no pending-merge or escaped reward states.
+Reopening the same PR does not grant a new Pokémon; closing/merging never removes it.
 Do not erase records because a request failed or a result page is incomplete.
 
 ## Constraints
@@ -190,13 +234,11 @@ Do not erase records because a request failed or a result page is incomplete.
 
 ## Decisions still to make
 
-- Which PR relationship qualifies: author, assignee, reviewer, or a configurable set?
-- Initial import/backfill and reconciliation of PRs changed while VS Code was closed.
-- Reopened PR behavior and the policy for revoked repository access.
-- Deterministic seed, algorithm versioning, species pool, rarity, and Shiny odds.
-- Account switching, multiple VS Code windows, profiles, and remote extension hosts.
+- Policy for revoked repository access beyond preserving captured history.
+- Future species-pool expansion, rarity, and Shiny odds without changing prior assignments.
+- Single-consumer presentation coordination across windows and cross-profile behavior.
 - Whether GitHub Enterprise is in the initial supported scope.
-- Exact UI surfaces, accessibility behavior, and animation controls.
+- Exact retro scene layout, accessibility behavior, and animation controls.
 - Asset sources, distribution permissions, attribution, and offline behavior.
 
 These are not settled requirements. Resolve the relevant decisions in an issue or

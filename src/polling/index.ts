@@ -1,6 +1,7 @@
 import type { DiscoveryResult } from '../github/discovery';
 import { parsePullRequestUrl } from '../github/client';
 import { isPullRequestKey, pullRequestKey } from '../github/identity';
+import { assignPokemon, type PokemonAssignment } from '../captures/assignment';
 
 interface LegacyPendingEncounter {
   readonly id: number;
@@ -80,7 +81,7 @@ export interface PendingEncounter extends LegacyPendingEncounter {
   readonly key: string;
 }
 
-export interface PollingIndex {
+interface PollingIndexV2 {
   readonly version: 2;
   readonly known: readonly string[];
   /** V1 history had only GitHub.com API IDs; retain until seen again. */
@@ -89,7 +90,7 @@ export interface PollingIndex {
   readonly baselines: LegacyPollingIndex['baselines'];
 }
 
-export function decodeIndex(value: unknown): PollingIndex {
+function decodeIndexV2(value: unknown): PollingIndexV2 {
   if (
     value === undefined ||
     (value as { version?: unknown } | null)?.version === 1
@@ -101,7 +102,7 @@ export function decodeIndex(value: unknown): PollingIndex {
       key: pullRequestKey({ ...item, host: 'github.com' }),
     }));
     const migrated = new Set(pending.map((item) => item.id));
-    return decodeIndex({
+    return decodeIndexV2({
       version: 2,
       known: pending.map((item) => item.key),
       legacyKnownIds: legacy.known.filter((id) => !migrated.has(id)),
@@ -109,7 +110,7 @@ export function decodeIndex(value: unknown): PollingIndex {
       baselines: { ...legacy.baselines },
     });
   }
-  const data = value as PollingIndex | null;
+  const data = value as PollingIndexV2 | null;
   if (
     !data ||
     data.version !== 2 ||
@@ -152,6 +153,135 @@ export function decodeIndex(value: unknown): PollingIndex {
   return data;
 }
 
+export interface Capture {
+  readonly key: string;
+  readonly source: PendingEncounter;
+  readonly pokemon: PokemonAssignment;
+  readonly capturedAt: string;
+}
+
+export type Presentation =
+  | { readonly key: string; readonly status: 'pending' }
+  | {
+      readonly key: string;
+      readonly status: 'shown';
+      readonly shownAt: string;
+    };
+
+export interface PollingIndex extends Omit<PollingIndexV2, 'version'> {
+  readonly version: 3;
+  readonly captures: readonly Capture[];
+  readonly presentations: readonly Presentation[];
+}
+
+export function decodeIndex(value: unknown): PollingIndex {
+  const version = (value as { version?: unknown } | null)?.version;
+  if (value === undefined || version === 1 || version === 2) {
+    return {
+      ...decodeIndexV2(value),
+      version: 3,
+      captures: [],
+      presentations: [],
+    };
+  }
+  if (!value || typeof value !== 'object' || version !== 3)
+    throw new Error('Unsupported polling schema.');
+  const data = value as PollingIndex;
+  decodeIndexV2({ ...data, version: 2 });
+  if (!Array.isArray(data.captures) || !Array.isArray(data.presentations))
+    throw new Error('Invalid capture ledger.');
+  const known = new Set(data.known);
+  const pending = new Set(data.pending.map((item) => item.key));
+  const captures = new Set<string>();
+  for (const capture of data.captures) {
+    if (
+      !capture ||
+      !isPullRequestKey(capture.key) ||
+      captures.has(capture.key) ||
+      pending.has(capture.key) ||
+      !known.has(capture.key) ||
+      typeof capture.capturedAt !== 'string' ||
+      !Number.isFinite(Date.parse(capture.capturedAt)) ||
+      !capture.pokemon ||
+      capture.pokemon.algorithm !== 'sha256-kanto-v1' ||
+      !Number.isSafeInteger(capture.pokemon.speciesId) ||
+      capture.pokemon.speciesId < 1 ||
+      capture.pokemon.speciesId > 151 ||
+      !capture.source ||
+      capture.source.key !== capture.key
+    )
+      throw new Error('Invalid capture record.');
+    decodeIndexV2({
+      version: 2,
+      known: [capture.key],
+      pending: [capture.source],
+      legacyKnownIds: [],
+      baselines: {},
+    });
+    captures.add(capture.key);
+  }
+  const presentations = new Set<string>();
+  for (const presentation of data.presentations) {
+    if (
+      !presentation ||
+      !captures.has(presentation.key) ||
+      presentations.has(presentation.key) ||
+      (presentation.status !== 'pending' && presentation.status !== 'shown') ||
+      (presentation.status === 'shown' &&
+        (typeof presentation.shownAt !== 'string' ||
+          !Number.isFinite(Date.parse(presentation.shownAt))))
+    )
+      throw new Error('Invalid presentation record.');
+    presentations.add(presentation.key);
+  }
+  if (presentations.size !== captures.size)
+    throw new Error('Missing presentation record.');
+  return data;
+}
+
+/** Assignment and presentation intent are committed together, before any UI. */
+export function capturePending(
+  index: PollingIndex,
+  capturedAt: string,
+): PollingIndex {
+  const captures = [...index.captures];
+  const presentations = [...index.presentations];
+  const keys = new Set(captures.map((capture) => capture.key));
+  for (const source of index.pending) {
+    if (keys.has(source.key)) continue;
+    captures.push({
+      key: source.key,
+      source: { ...source },
+      pokemon: assignPokemon(source.key),
+      capturedAt,
+    });
+    presentations.push({ key: source.key, status: 'pending' });
+    keys.add(source.key);
+  }
+  return { ...index, pending: [], captures, presentations };
+}
+
+export function markPresentationShown(
+  index: PollingIndex,
+  key: string,
+  shownAt: string,
+): PollingIndex {
+  if (
+    !index.presentations.some(
+      (item) => item.key === key && item.status === 'pending',
+    )
+  )
+    return index;
+  if (!Number.isFinite(Date.parse(shownAt)))
+    throw new Error('Invalid presentation date.');
+  return {
+    ...index,
+    presentations: index.presentations.map((item) =>
+      item.key === key ? { key, status: 'shown', shownAt } : item,
+    ),
+  };
+}
+
 export function reconcilePolling(
   previous: PollingIndex,
   result: DiscoveryResult,
@@ -192,7 +322,8 @@ export function reconcilePolling(
   }
   return {
     index: {
-      version: 2,
+      ...previous,
+      version: 3,
       known: [...known],
       legacyKnownIds: [...legacyKnownIds],
       pending: [...pending.values()],
