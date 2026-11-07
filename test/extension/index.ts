@@ -68,7 +68,7 @@ async function verifyAuthentication(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 25));
     previewTab = vscode.window.tabGroups.all
       .flatMap((group) => group.tabs)
-      .find((tab) => tab.label === 'Demo: Pikachu — Captured!');
+      .find((tab) => tab.label === 'Demo: Pikachu — Encounter');
   }
   assert.ok(
     previewTab,

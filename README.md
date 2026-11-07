@@ -18,20 +18,23 @@ the full Pokédex screen remains planned.
 3. Sign in and let the first synchronization finish (historical PRs do not grant rewards).
 4. Open a **new** PR authored by that account. Wait for polling or run **Check for
    New Pull Requests Now**. Search indexing may delay detection.
-5. The scene opens beside the editor: encounter → ball throw → guaranteed capture
-   → confirmation. Click **Continue** to dismiss it and advance to the next capture.
+5. The FireRed-style scene opens beside the editor and **waits for you**. The Pokémon
+   stays visible until you select **CAPTURAR**, which starts throw → shakes → success.
+   Click **CONTINUAR** afterward to advance to the next encounter.
 
 Captures are saved **before** animation. Skip/close never loses a Pokémon; merge
-is not required. A visible scene deliberately closed by the user is acknowledged
-and will not automatically replay. Closing a not-yet-visible scene, switching
-accounts/scopes, or shutting down before acknowledgement leaves it recoverable.
+is not required. Closing before the capture completes or choosing **MAIS TARDE**
+leaves the encounter pending; it is deferred for this window's session so it does
+not interrupt you again on every poll. Use **Show Pending Capture Animations** to
+resume. Only completing the capture and dismissing its result acknowledges it.
+Switching accounts/scopes or shutting down before acknowledgement also keeps it recoverable.
 
-Sprites require internet access to the public PokeAPI/sprites host; no GitHub token
+Actual FireRed/LeafGreen front/back sprites require internet access to the public PokeAPI/sprites host; no GitHub token
 or PR metadata is sent. A failed image load shows a clearly marked fallback,
-not a failed capture. Use **Retry sprite** or try again when connected.
+not a failed capture. Use **SPRITE** or try again when connected.
 **Presentation: Enabled** controls automatic scenes, **Presentation: Remote Artwork**
 controls external image requests, and **Presentation: Reduced Motion** skips
-movement. OS/VS Code reduced-motion preferences are respected too.
+movement **after** you select CAPTURAR; it never skips the decision. OS/VS Code reduced-motion preferences are respected too.
 With automatic scenes off, use **Show Pending Capture Animations** manually.
 
 ![Sprite-free capture confirmation preview](docs/images/capture-result.jpg)
@@ -130,7 +133,7 @@ Do not run older extension builds against the same profile after migrating.
 
 - Discover your pull requests across repositories, independently of the open workspace.
 - Encounter a Pokémon when a new pull request is discovered.
-- Capture it immediately, independently of later merge or closure; no fleeing or capture failure.
+- Choose CAPTURAR to play the guaranteed capture, independently of later merge or closure; no fleeing or capture failure.
 - Present a retro pixel-art encounter followed by a guaranteed capture animation as a core feature.
 - Keep captures and a shared Pokédex locally across workspaces.
 - Add collection screens, rare encounters, opening-PR streaks, and achievements.

@@ -350,12 +350,14 @@ the full Pokédex UI remains planned.
 This PR combines the first user-testable US-09/16/19/27/28 flow:
 
 1. A new eligible PR gets a persisted deterministic capture before any scene opens.
-2. Show its name and pixelated front sprite, followed by original retro encounter,
+2. Show its name and FireRed front sprite indefinitely until CAPTURAR is chosen, followed by
    ball throw/shakes, guaranteed success, and confirmation beside the editor.
 3. Sequence multiple captures without overlapping panels or duplicate automatic
    presentations across windows; recheck authoritative pending state before display.
 4. Skip, Continue, Escape/close, reduced motion, and account/scope cancellation
-   never remove a capture. Deliberately dismissed visible scenes are acknowledged.
+   never remove a reward. Only completed, dismissed captures are acknowledged;
+   early-close/MAIS TARDE leaves the encounter pending and defers automatic prompts
+   in that window until manual resume or restart. Reduced motion does not bypass CAPTURAR.
 5. Preview is synthetic and does not modify collection data or require sign-in.
 6. Missing artwork is clearly identified; text still confirms the saved reward.
 7. No merge, battle, failure chance, or full Pokédex screen is required for this test.
@@ -369,7 +371,10 @@ opens/closes the actual preview webview with remote artwork disabled, without OA
 For interactive verification, F5 then run **Preview Capture Animation**. The demo
 uses Pikachu, has a DEMO/NOT SAVED badge, and leaves capture counts unchanged.
 Then sign in, complete the baseline, open a fresh PR, and poll. Verify the real
-scene shows that PR and an already-saved capture. Close/continue and poll/reload;
+scene shows that PR and an already-saved reward. Wait without clicking and verify
+the Pokémon stays visible. Choose MAIS TARDE and poll: it must stay pending but not
+reopen automatically in that window. Use Show Pending Capture Animations to resume,
+then CAPTURAR → CONTINUAR and poll/reload;
 the acknowledged scene must not replay. Switch accounts or disable private access
 during a private capture: the old panel must close without exposing it afterward.
 With two development windows sharing storage, only one may present a given item.
@@ -380,7 +385,7 @@ Application settings:
   captures continue when disabled. **Show Pending Capture Animations** is manual.
 - `prPokemonFinder.presentation.remoteArtwork` (true): allow fixed-origin public
   PNG retrieval. False prevents requests and displays a named, marked fallback.
-- `prPokemonFinder.presentation.reducedMotion` (false): direct success state.
+- `prPokemonFinder.presentation.reducedMotion` (false): direct success state only after CAPTURAR.
   OS `prefers-reduced-motion` and VS Code `workbench.reduceMotion=on` also apply.
 
 The exact production HTML/CSS/JS can be inspected independently with `pnpm build`

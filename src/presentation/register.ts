@@ -23,6 +23,7 @@ export function registerCapturePresentation(
   let active:
     { panel: vscode.WebviewPanel; key: string; demo: boolean } | undefined;
   let lastError = '';
+  const deferred = new Set<string>();
   const config = () => vscode.workspace.getConfiguration('prPokemonFinder');
   const cancel = () => {
     generation++;
@@ -39,13 +40,16 @@ export function registerCapturePresentation(
       !disposed && currentGeneration === generation && sourceCurrent();
     const remoteArtwork =
       config().get<boolean>('presentation.remoteArtwork', true) === true;
-    const sprite = remoteArtwork
-      ? await sprites.load(capture.pokemon.speciesId)
-      : undefined;
+    const [sprite, companionSprite] = remoteArtwork
+      ? await Promise.all([
+          sprites.load(capture.pokemon.speciesId),
+          sprites.load(1, 'back'),
+        ])
+      : [undefined, undefined];
     if (!current()) return false;
     const panel = vscode.window.createWebviewPanel(
       'prPokemonFinder.capture',
-      `${demo ? 'Demo: ' : ''}${pokemonName(capture.pokemon.speciesId)} — Captured!`,
+      `${demo ? 'Demo: ' : ''}${pokemonName(capture.pokemon.speciesId)} — Encounter`,
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       {
         enableScripts: true,
@@ -56,6 +60,8 @@ export function registerCapturePresentation(
     );
     active = { panel, key: capture.key, demo };
     let ready = false;
+    let captureStarted = false;
+    let completed = false;
     let retrying = false;
     return new Promise<boolean>((resolve) => {
       const subscriptions: vscode.Disposable[] = [];
@@ -63,7 +69,9 @@ export function registerCapturePresentation(
         panel.onDidDispose(() => {
           if (active?.panel === panel) active = undefined;
           for (const subscription of subscriptions) subscription.dispose();
-          resolve(ready && current());
+          if (!demo && ready && current() && !completed)
+            deferred.add(capture.key);
+          resolve(ready && completed && current());
         }),
       );
       subscriptions.push(
@@ -71,6 +79,8 @@ export function registerCapturePresentation(
           if (!current() || !message || typeof message !== 'object') return;
           const type = (message as { type?: unknown }).type;
           if (type === 'ready' && panel.visible) ready = true;
+          if (type === 'catch' && ready && panel.visible) captureStarted = true;
+          if (type === 'captured' && captureStarted) completed = true;
           if (type === 'dismiss') panel.dispose();
           if (type === 'open-pr' && !demo)
             void vscode.env.openExternal(vscode.Uri.parse(capture.source.url));
@@ -93,6 +103,7 @@ export function registerCapturePresentation(
       panel.webview.html = renderSceneHtml({
         capture,
         sprite,
+        companionSprite,
         demo,
         remoteArtwork,
         reducedMotion:
@@ -121,17 +132,20 @@ export function registerCapturePresentation(
     )
       return;
     running = true;
+    if (manual) deferred.clear();
     try {
       while (
         !disposed &&
-        polling.pendingCaptures.length &&
+        polling.pendingCaptures.some((item) => !deferred.has(item.key)) &&
         (manual || config().get<boolean>('presentation.enabled', true) === true)
       ) {
+        const deferredCount = deferred.size;
         const progressed = await polling.presentNext(
           gate,
           (capture, isCurrent) => show(capture, isCurrent),
+          deferred,
         );
-        if (!progressed) break;
+        if (!progressed && deferred.size === deferredCount) break;
         lastError = '';
       }
     } catch {

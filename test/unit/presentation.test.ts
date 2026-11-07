@@ -43,7 +43,7 @@ test('sprite loader uses one fixed credential-free request per species and cache
     requests++;
     assert.equal(
       url,
-      'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png',
+      'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-iii/firered-leafgreen/25.png',
     );
     assert.equal(options?.redirect, 'error');
     assert.equal(options?.credentials, 'omit');
@@ -183,25 +183,35 @@ function scene(reduced = false, hidden = false) {
   return { get, timers, messages, document, documentEvents, windowEvents };
 }
 
-test('scene plays encounter, throw, shake and guaranteed capture in order before continuing', () => {
+test('encounter waits indefinitely until Capture is chosen, then plays throw, shake and success', () => {
   const ui = scene();
   assert.equal(ui.get('scene').dataset.phase, 'encounter');
   assert.equal(ui.messages[0]?.type, 'ready');
-  for (const [i, phase] of ['throw', 'shake', 'captured'].entries()) {
+  assert.equal(ui.timers.length, 0);
+  ui.get('catch').events.get('click')!();
+  assert.equal(ui.get('scene').dataset.phase, 'throw');
+  assert.equal(ui.messages[1]?.type, 'catch');
+  for (const [i, phase] of ['shake', 'captured'].entries()) {
     ui.timers[i]!();
     assert.equal(ui.get('scene').dataset.phase, phase);
   }
   assert.equal(ui.get('continue').disabled, false);
-  assert.match(ui.get('caption').textContent, /Pikachu was caught/);
+  assert.match(ui.get('caption').textContent, /PIKACHU foi capturado/);
   ui.get('continue').events.get('click')!();
-  assert.equal(ui.messages[1]?.type, 'dismiss');
+  assert.equal(ui.messages[2]?.type, 'captured');
+  assert.equal(ui.messages[3]?.type, 'dismiss');
 });
 
-test('skip and reduced motion produce immediate capture; hidden scenes do not start or acknowledge', () => {
+test('reduced motion still waits for Capture; Skip cannot bypass the user choice; hidden scenes do not start', () => {
   const reduced = scene(true);
-  assert.equal(reduced.get('scene').dataset.phase, 'captured');
+  assert.equal(reduced.get('scene').dataset.phase, 'encounter');
   assert.equal(reduced.timers.length, 0);
+  reduced.get('catch').events.get('click')!();
+  assert.equal(reduced.get('scene').dataset.phase, 'captured');
   const skipped = scene();
+  skipped.get('skip').events.get('click')!();
+  assert.equal(skipped.get('scene').dataset.phase, 'encounter');
+  skipped.get('catch').events.get('click')!();
   skipped.get('skip').events.get('click')!();
   skipped.timers[0]!();
   assert.equal(skipped.get('scene').dataset.phase, 'captured');
@@ -211,6 +221,41 @@ test('skip and reduced motion produce immediate capture; hidden scenes do not st
   hidden.document.hidden = false;
   hidden.documentEvents.get('visibilitychange')!();
   assert.equal(hidden.messages[0]?.type, 'ready');
+  assert.equal(hidden.timers.length, 0);
+});
+
+test('closing before Capture never reports successful capture; repeated clicks cannot duplicate it', () => {
+  const untouched = scene();
+  untouched.get('close').events.get('click')!();
+  assert.deepEqual(
+    untouched.messages.map((item) => item.type),
+    ['ready', 'dismiss'],
+  );
+  const clicked = scene(true);
+  clicked.get('catch').events.get('click')!();
+  clicked.get('catch').events.get('click')!();
+  assert.equal(
+    clicked.messages.filter((item) => item.type === 'catch').length,
+    1,
+  );
+  assert.equal(
+    clicked.messages.filter((item) => item.type === 'captured').length,
+    1,
+  );
+});
+
+test('FireRed front/back sprites use separate cache keys and explicit versioned paths', async () => {
+  const paths: string[] = [];
+  const loader = new SpriteLoader(async (input) => {
+    paths.push(String(input));
+    return new Response(pixel, { headers: { 'content-type': 'image/png' } });
+  });
+  await loader.load(1);
+  await loader.load(1, 'back');
+  await loader.load(1, 'back');
+  assert.equal(paths.length, 2);
+  assert.ok(paths[0]?.endsWith('/firered-leafgreen/1.png'));
+  assert.ok(paths[1]?.endsWith('/firered-leafgreen/back/1.png'));
 });
 
 test('sprite retries accept only PNG data messages, never remote URLs or markup', () => {

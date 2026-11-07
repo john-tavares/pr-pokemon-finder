@@ -8,6 +8,9 @@ const { SpriteLoader } = require('../out/src/presentation/sprites.js');
 const sprite = process.argv.includes('--offline')
   ? undefined
   : await new SpriteLoader().load(25);
+const companionSprite = process.argv.includes('--offline')
+  ? undefined
+  : await new SpriteLoader().load(1, 'back');
 const capture = {
   key: 'pr:v1:github.com/demo/example/25',
   capturedAt: '2026-11-07T12:00:00Z',
@@ -32,7 +35,10 @@ const server = createServer(async (request, response) => {
     response.end(
       renderSceneHtml({
         capture,
-        sprite,
+        sprite: url.searchParams.has('offline') ? undefined : sprite,
+        companionSprite: url.searchParams.has('offline')
+          ? undefined
+          : companionSprite,
         nonce: 'isolated-development-preview',
         scriptUri: '/capture.js',
         styleUri: '/capture.css',
@@ -46,6 +52,11 @@ const server = createServer(async (request, response) => {
     response.setHeader('Content-Type', 'application/javascript');
     response.end(
       `window.previewMessages=[];window.acquireVsCodeApi=()=>({postMessage(message){window.previewMessages.push(message);if(message.type==='dismiss')document.body.dataset.dismissed='true';}});\n${await readFile(new URL('../media/capture.js', import.meta.url), 'utf8')}`,
+    );
+  } else if (url.pathname === '/VT323-Regular.ttf') {
+    response.setHeader('Content-Type', 'font/ttf');
+    response.end(
+      await readFile(new URL('../media/VT323-Regular.ttf', import.meta.url)),
     );
   } else if (url.pathname === '/capture.css') {
     response.setHeader('Content-Type', 'text/css');

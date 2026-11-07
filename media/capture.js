@@ -4,32 +4,56 @@
   const scene = document.getElementById('scene');
   const caption = document.getElementById('caption');
   const detail = document.getElementById('detail');
+  const catchButton = document.getElementById('catch');
   const skip = document.getElementById('skip');
   const done = document.getElementById('continue');
   const demo = scene.dataset.demo === 'true';
   const reduced =
     scene.dataset.motion === 'reduced' ||
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const name = scene.dataset.name;
+  const name = scene.dataset.name.toUpperCase();
+  let started = false;
+  let capturing = false;
   let finished = false;
   const timers = [];
   const transition = (phase) => {
-    if (finished) return;
+    if (finished || !capturing) return;
     scene.dataset.phase = phase;
-    if (phase === 'throw') caption.textContent = `A perfect throw for ${name}!`;
-    if (phase === 'shake') caption.textContent = 'One… two… three…';
+    if (phase === 'throw') {
+      caption.textContent = 'Você lançou uma POKé BALL!';
+      detail.textContent = '';
+    }
+    if (phase === 'shake') caption.textContent = 'Um… dois… três…';
     if (phase === 'captured') {
       finished = true;
-      caption.textContent = `Gotcha! ${name} was caught!`;
-      detail.textContent = demo
-        ? 'Demo complete. Nothing was added to your collection.'
-        : 'Added to your local collection. Keep building!';
+      caption.textContent = 'Isso! ' + name + ' foi capturado!';
+      detail.textContent = demo ? 'Prévia, nada salvo.' : 'Salvo na coleção!';
       skip.hidden = true;
+      done.hidden = false;
       done.disabled = false;
+      document.getElementById('close').textContent = 'FECHAR';
+      vscode.postMessage({ type: 'captured' });
     }
   };
   const cancelTimers = () => timers.forEach(clearTimeout);
+  catchButton.addEventListener('click', () => {
+    if (!started || capturing || finished) return;
+    capturing = true;
+    catchButton.disabled = true;
+    catchButton.hidden = true;
+    skip.hidden = false;
+    vscode.postMessage({ type: 'catch' });
+    transition('throw');
+    if (reduced) transition('captured');
+    else
+      for (const [delay, phase] of [
+        [900, 'shake'],
+        [3100, 'captured'],
+      ])
+        timers.push(setTimeout(() => transition(phase), delay));
+  });
   skip.addEventListener('click', () => {
+    if (!capturing) return;
     cancelTimers();
     transition('captured');
   });
@@ -64,29 +88,19 @@
     img.hidden = false;
     document.getElementById('sprite-fallback').hidden = true;
     document.getElementById('art-status').textContent =
-      'Sprite via PokéAPI · © The Pokémon Company';
+      'Sprites FireRed/LeafGreen via PokéAPI · © The Pokémon Company';
   });
-  const img = document.getElementById('sprite');
-  img.addEventListener('error', () => {
-    img.hidden = true;
+  document.getElementById('sprite').addEventListener('error', () => {
+    document.getElementById('sprite').hidden = true;
     document.getElementById('sprite-fallback').hidden = false;
     document.getElementById('art-status').textContent =
-      'Sprite unavailable. The capture is safe.';
+      'Sprite indisponível. Seu encontro está salvo.';
   });
-  // Start only while the panel is actually visible; background tabs do not acknowledge.
-  let started = false;
   const start = () => {
     if (started || document.hidden) return;
     started = true;
     vscode.postMessage({ type: 'ready' });
-    if (reduced) transition('captured');
-    else
-      for (const [delay, phase] of [
-        [1400, 'throw'],
-        [2200, 'shake'],
-        [4400, 'captured'],
-      ])
-        timers.push(setTimeout(() => transition(phase), delay));
+    // No timer here: even reduced-motion users must explicitly choose CAPTURAR.
   };
   document.addEventListener('visibilitychange', start);
   window.addEventListener('pagehide', cancelTimers);

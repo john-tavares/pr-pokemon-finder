@@ -86,10 +86,11 @@ export class PollingController implements Disposable {
   async presentNext(
     gate: PresentationGate,
     present: (capture: Capture, isCurrent: () => boolean) => Promise<boolean>,
+    excludedKeys: ReadonlySet<string> = new Set(),
   ): Promise<boolean> {
     const accountId = this.accountId;
     const generation = this.generation;
-    const candidate = this.pending[0];
+    const candidate = this.pending.find((item) => !excludedKeys.has(item.key));
     if (accountId === undefined || !candidate) return false;
     const current = () =>
       !this.disposed && this.options.active && generation === this.generation;

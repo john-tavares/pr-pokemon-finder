@@ -3,25 +3,34 @@ import { pokemonName } from './catalog';
 const limit = 128 * 1024;
 /** Runtime-only artwork: fixed public origin, never GitHub credentials or PR metadata. */
 export class SpriteLoader {
-  private readonly cache = new Map<number, Promise<string | undefined>>();
+  private readonly cache = new Map<string, Promise<string | undefined>>();
   constructor(private readonly request: typeof fetch = fetch) {}
 
-  load(speciesId: number): Promise<string | undefined> {
+  load(
+    speciesId: number,
+    side: 'front' | 'back' = 'front',
+  ): Promise<string | undefined> {
     pokemonName(speciesId);
-    const cached = this.cache.get(speciesId);
+    if (side !== 'front' && side !== 'back')
+      throw new Error('Invalid sprite side.');
+    const key = `${side}:${speciesId}`;
+    const cached = this.cache.get(key);
     if (cached) return cached;
-    const loading = this.fetchSprite(speciesId).then((result) => {
-      if (!result) this.cache.delete(speciesId);
+    const loading = this.fetchSprite(speciesId, side).then((result) => {
+      if (!result) this.cache.delete(key);
       return result;
     });
-    this.cache.set(speciesId, loading);
+    this.cache.set(key, loading);
     return loading;
   }
 
-  private async fetchSprite(id: number): Promise<string | undefined> {
+  private async fetchSprite(
+    id: number,
+    side: 'front' | 'back',
+  ): Promise<string | undefined> {
     try {
       const response = await this.request(
-        `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+        `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-iii/firered-leafgreen/${side === 'back' ? 'back/' : ''}${id}.png`,
         {
           method: 'GET',
           redirect: 'error',

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replace timed auto-capture with an explicit CAPTURAR choice; keep the Pokémon visible indefinitely, including reduced-motion mode.
+- Defer incomplete/dismissed encounters until manual resume in the current window, and acknowledge only completed captures.
+- Rebuild the scene around FireRed battle layout with version-specific front/back sprites and an OFL-licensed pixel font.
+
 - Present new PR captures automatically with local species names, runtime sprites, and original retro encounter/throw/shake/confirmation scenes (US-09/16/19/27/28).
 - Add safe preview/manual presentation commands, a cross-window scene gate, skip/close actions, reduced motion, and offline artwork fallback.
 - Bundle original webview code and third-party notices, but no Pokémon sprite files.

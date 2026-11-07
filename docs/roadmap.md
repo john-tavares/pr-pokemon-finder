@@ -35,6 +35,10 @@ New capabilities must update local commands, tests, and CI together.
 A newly opened eligible PR grants exactly one Pokémon immediately when discovered.
 Persist the capture, then present a retro pixel-art encounter and guaranteed capture
 sequence. Later merge, closure, or reopening never grants/removes a Pokémon.
+UX revision: the saved reward opens as a waiting encounter. The user must choose
+CAPTURAR before animation starts; closing early defers presentation instead of
+acknowledging it. No reward is lost. The scene now uses FireRed/LeafGreen sprites
+and battle layout with a licensed pixel font.
 US-07, US-08, US-17, and US-20 were removed; identifiers are not renumbered.
 US-27 and US-28 are P0 core features, not optional post-release polish. Their first
 implementation now uses original CSS/JS animation and a runtime sprite, including

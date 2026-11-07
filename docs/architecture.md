@@ -170,7 +170,8 @@ The controller exposes pending captures only after the transaction commits.
 even if acknowledgement storage fails. It is an internal presenter integration
 point, not an exported extension API or command. Opening a PR from the native
 picker does not acknowledge it. The retro presenter now acknowledges an actually
-visible scene when the user continues/closes it. A separate cross-window gate
+visible scene only after the user chooses CAPTURAR, completes the capture, and
+continues/closes the result. Closing before that leaves presentation pending. A separate cross-window gate
 claims the presentation while the panel is open; it never holds the snapshot
 writer lock during animation or UI interaction.
 An interrupted scene before acknowledgement can be retried; an acknowledged one
@@ -189,20 +190,23 @@ without acknowledging them. No remote PR is modified.
 
 The webview opens beside the editor without taking focus. Its ready message is
 accepted only while the panel is visible, and the browser script starts only when
-the document is visible. A user dismissal then acknowledges it; context/shutdown
-cancellation does not. An unrendered scene is left pending. Multiple captures
+the document is visible. The scene then waits indefinitely for CAPTURAR. Only
+a completed capture followed by dismissal acknowledges it; early dismissal and
+context/shutdown cancellation do not. Early-dismissed scenes are deferred in this
+window's memory until explicit manual resume or restart; other queued scenes can
+still proceed. An unrendered scene is left pending. Multiple captures
 advance sequentially after Continue/close; no animation panels overlap locally.
 A busy cross-window gate leaves the item pending for a later poll/manual retry.
 The same conservative orphan-lock recovery rule applies to presentation locks.
 
-`media/capture.js` runs encounter → throw → shake → guaranteed capture. Skip,
+`media/capture.js` runs waiting encounter → CAPTURAR → throw → shake → guaranteed capture. Skip,
 Escape/close, OS reduced motion, and an explicit reduced-motion preference are
-supported. Reduced motion goes directly to the textual success state. The live
+supported. Reduced motion waits for the same choice, then goes directly to success. The live
 caption announces status and buttons support keyboard focus. The preview command
 uses synthetic Pikachu metadata only and never reads/writes capture storage.
 
 `src/presentation/catalog.ts` supplies names for species 1–151 locally. Runtime
-sprites come from one fixed public PNG path per species via a separate loader
+sprites use the explicit generation-iii/firered-leafgreen front/back paths via a separate loader
 with no credential provider. The loader has a five-second timeout, denies
 redirects, checks MIME/PNG header/dimensions, limits streamed bytes to 128 KiB, and
 caches successful requests in memory. Failure uses a clearly labeled question-mark
@@ -214,7 +218,10 @@ a random script nonce, and a restrictive CSP: images are PNG data URIs only,
 network connections/forms are disabled, and command URIs are disabled. Webview
 messages contain only allowlisted action types; PR URLs come from the validated
 capture, never message input. No remote script, font, CDN UI, audio, or sprite file
-is bundled. Original CSS draws the landscape and geometric ball.
+is bundled. The unmodified OFL-licensed VT323 font and its copyright/license are
+bundled locally, with font-src restricted to the webview resource origin. Original
+CSS recreates the FireRed-style striped field, platforms, HUDs, dialogue and menu.
+Bulbasaur's back sprite is a purely decorative companion, not a granted capture.
 
 ## Transactional local storage
 

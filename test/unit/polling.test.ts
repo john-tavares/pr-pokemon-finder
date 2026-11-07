@@ -95,6 +95,59 @@ class Timer {
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test('deferred encounters stay pending while another encounter can be presented and acknowledged', async () => {
+  const store = new Store();
+  const timer = new Timer();
+  const controller = new PollingController(
+    async () => batch([pr(1), pr(2)]),
+    store,
+    () => {},
+    timer.schedule,
+    () => Date.parse(start),
+  );
+  const gate = {
+    run: async (_id: number, work: () => Promise<boolean>) => work(),
+  };
+  controller.configure(enabled);
+  await controller.pollNow();
+  const deferred = new Set([pullRequestKey(pr(1))]);
+  assert.equal(
+    await controller.presentNext(
+      gate,
+      async (capture) => {
+        assert.equal(capture.key, pullRequestKey(pr(2)));
+        return true;
+      },
+      deferred,
+    ),
+    true,
+  );
+  const saved = decodeIndex(store.read(123));
+  assert.equal(
+    saved.presentations.find((item) => item.key === pullRequestKey(pr(1)))
+      ?.status,
+    'pending',
+  );
+  assert.equal(
+    saved.presentations.find((item) => item.key === pullRequestKey(pr(2)))
+      ?.status,
+    'shown',
+  );
+  deferred.clear();
+  assert.equal(
+    await controller.presentNext(
+      gate,
+      async (capture) => {
+        assert.equal(capture.key, pullRequestKey(pr(1)));
+        return true;
+      },
+      deferred,
+    ),
+    true,
+  );
+  controller.dispose();
+});
+
 test('two presenter windows cannot replay the same capture, including a stale local queue', async () => {
   const store = new Store();
   const timer = new Timer();
