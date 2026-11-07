@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Discover authored PRs across repositories with pagination, metadata, and explicit partial-result warnings (US-03).
+- Add opt-in native consent for private repositories, with public-only defaults and no per-repository setup.
+
 - Add authenticated GitHub API connection checks and known public PR lookup (US-02).
 - Handle expired sessions with explicit native reauthentication, sanitized API failures, and rate-limit cooldowns.
 

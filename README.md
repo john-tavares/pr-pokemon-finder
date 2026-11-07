@@ -2,10 +2,10 @@
 
 Turn your GitHub pull requests into Pokémon encounters inside Visual Studio Code.
 
-**Status: pre-release / GitHub API prototype.** US-01 and US-02 are implemented:
-native sign-in, session restoration, connection status, API connection checks,
-and lookup of a known public PR. There is no Marketplace release yet. PR discovery, encounters, and the
-Pokédex below are planned features, not working functionality.
+**Status: pre-release / PR discovery prototype.** US-01 through US-03 are implemented:
+native sign-in, API access, known PR lookup, and manual discovery of authored PRs
+across repositories. There is no Marketplace release yet. Polling, Pokémon
+encounters, and the Pokédex remain planned.
 
 ## Try GitHub authentication
 
@@ -14,8 +14,9 @@ launch an Extension Development Host. Click **PR Pokémon: Sign in** in the stat
 bar, or run **PR Pokémon Finder: Sign in to GitHub** from the Command Palette.
 The native GitHub provider handles browser authentication and consent.
 
-The extension requests `read:user` for account identity only. It does not request
-repository access or store tokens. On restart, it silently asks VS Code for the
+By default, the extension requests `read:user` for account identity and public
+PR access. Optional private access requires additional consent, described below.
+The extension does not store tokens. On restart, it silently asks VS Code for the
 existing authorized session. Use the VS Code **Accounts** menu to sign out or
 revoke this extension's access; the status indicator updates accordingly.
 Use **PR Pokémon Finder: Show Authentication Status** to inspect the current state.
@@ -35,9 +36,32 @@ by the extension. If GitHub rejects it, the extension marks the session disconne
 and offers a new native login. Network failures and rate limits show actionable
 messages; rate-limited requests pause until the cooldown ends.
 
-This version keeps the `read:user` scope and supports public PRs only. Private
-repository consent and automatic discovery belong to later stories. No API calls
-or login prompts run automatically at startup.
+No API queries or login prompts run automatically at startup.
+
+## Discover your pull requests
+
+Run **PR Pokémon Finder: Discover My Pull Requests** to find PRs authored by your
+authenticated GitHub account across repositories, including repositories not open
+in VS Code. No Git remote or per-repository configuration is required. Select a PR
+to inspect its metadata and optionally open it on GitHub.
+
+Results include owner, repository, PR number, URL, open/closed state, and creation,
+update, and closure dates. Discovery is an explicit snapshot, not background
+monitoring or durable storage. Search results are paginated up to GitHub's
+1,000-result limit. Partial, shifting, or capped results show a warning and must not
+be interpreted as a complete history. GitHub search indexing and access restrictions
+can also affect results. Merge processing comes in a later story.
+
+Public repositories are the default. To include private repositories, run
+**PR Pokémon Finder: Enable Private Repository Access**. The command explains
+GitHub's broad `repo` OAuth scope, then opens native consent; this scope permits
+both read and write access, although this extension only makes read requests.
+Only successful consent enables the global private-discovery preference. Account
+and organization/SSO policies still apply.
+
+To return to public-only discovery, disable **PR Pokémon Finder: Include Private
+Repositories** in Settings. This does not revoke existing OAuth permissions;
+manage those through VS Code Accounts/GitHub. Tokens remain managed by VS Code.
 
 ## Planned experience
 
@@ -68,7 +92,7 @@ Development requires Node.js 24; the extension supports desktop VS Code 1.95.0 o
 newer. Run `pnpm build` to compile TypeScript, `pnpm test:extension` for an isolated
 Extension Host smoke test, or `pnpm package` to produce
 `dist/pr-pokemon-finder.vsix`. Install that file using **Extensions: Install from
-VSIX...**. It contains the authentication and explicit API lookup prototype.
+VSIX...**. It contains authentication, API lookup, and manual PR discovery.
 
 ## Contribute
 

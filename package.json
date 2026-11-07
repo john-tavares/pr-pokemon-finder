@@ -25,7 +25,28 @@
     }
   },
   "contributes": {
+    "configuration": {
+      "title": "PR Pokémon Finder",
+      "properties": {
+        "prPokemonFinder.includePrivateRepositories": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "markdownDescription": "Include private repositories in authored PR discovery. Requires native GitHub authorization for the broad `repo` scope. Use **PR Pokémon Finder: Enable Private Repository Access** to consent. Disabling this setting does not revoke existing GitHub permissions; manage those in Accounts."
+        }
+      }
+    },
     "commands": [
+      {
+        "command": "prPokemonFinder.discoverPullRequests",
+        "title": "Discover My Pull Requests",
+        "category": "PR Pokémon Finder"
+      },
+      {
+        "command": "prPokemonFinder.enablePrivateRepositories",
+        "title": "Enable Private Repository Access",
+        "category": "PR Pokémon Finder"
+      },
       {
         "command": "prPokemonFinder.checkGitHubConnection",
         "title": "Check GitHub API Connection",

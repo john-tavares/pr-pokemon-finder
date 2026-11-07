@@ -181,6 +181,53 @@ Manual verification with a test account:
 Do not deliberately exhaust the live API rate limit. Cooldown behavior is tested
 with fake headers and an injected clock.
 
+## US-03 acceptance and manual verification
+
+As a user, discover my PRs across repositories without configuring each project.
+Acceptance criteria:
+
+1. Query PRs associated with the authenticated account. For this implementation,
+   "my PRs" means PRs authored by that account, including open and closed PRs.
+2. Work independently of the currently open workspace or Git remotes.
+3. Record owner, repository, number, URL, state, and relevant dates in typed results.
+4. Include private repositories when the account authorizes the required scope
+   and GitHub/organization policies allow access.
+
+Run **Discover My Pull Requests** from the Command Palette. Results are a manual,
+in-memory snapshot; US-04 adds polling and US-13 addresses durable persistence.
+The global application setting `prPokemonFinder.includePrivateRepositories`
+defaults to false. **Enable Private Repository Access** explains the broad `repo`
+scope, requests native consent, and enables the setting only after success.
+Changing this setting resets connection lookup for the newly selected scopes.
+The extension never starts interactive consent automatically.
+
+Tests use fake search responses to cover cross-repository mapping, public/private
+query filters, page boundaries and sequencing, the search ceiling, malformed data,
+incomplete/changing results, duplicates, cancellation, and account switching.
+Scope-policy tests ensure public mode does not request `repo`. No test requires
+access to private repositories or a real GitHub account.
+
+Manual verification with a test account:
+
+1. Open an empty development-host window or a folder with no Git remote. Sign in,
+   run discovery, and verify authored public PRs from different repositories appear.
+2. Select a result, inspect its repository/state/dates, and use **Open on GitHub**.
+3. Run private-access enablement and cancel consent. Verify the preference remains
+   false and public discovery still works.
+4. Enable private access successfully and verify authored PRs in an accessible
+   private repository appear. Check organization authorization/SSO where applicable.
+5. Disable the private setting and verify public-only search resumes. Confirm no
+   new consent prompt opens automatically; manage OAuth revocation separately.
+6. Cancel discovery or change accounts/access settings during a query. Verify stale
+   results are not displayed and an open result picker closes after an auth change.
+7. For an account with no authored PRs, verify the empty-state message. Exercise
+   incomplete/capped results with fixtures rather than creating thousands of PRs.
+
+GitHub search exposes at most 1,000 matches per query and may return incomplete
+or delayed indexed results. The UI warns about detected partial batches; it does
+not claim a complete permanent history. Search `state` is open/closed; an absent
+`mergedAt` is unknown. Do not infer capture/escape transitions from it.
+
 ## Troubleshooting
 
 - **Frozen lockfile failure:** ensure your branch has matching manifest and lockfile

@@ -4,16 +4,30 @@ import type {
   SessionProvider,
   SessionRequest,
 } from './authentication';
+import { githubScopes, PRIVATE_GITHUB_SCOPES } from './scopes';
 
 export const GITHUB_PROVIDER = 'github';
-export const GITHUB_SCOPES: readonly string[] = ['read:user'];
+export function privateRepositoriesEnabled(): boolean {
+  return (
+    vscode.workspace
+      .getConfiguration('prPokemonFinder')
+      .get<boolean>('includePrivateRepositories', false) === true
+  );
+}
 
 export class VSCodeSessionProvider implements SessionProvider {
+  async authorizePrivateRepositories(): Promise<void> {
+    await vscode.authentication.getSession(
+      GITHUB_PROVIDER,
+      PRIVATE_GITHUB_SCOPES,
+      { createIfNone: true },
+    );
+  }
   /** Request-scoped access only; the client must never persist this value. */
   async getAccessToken(): Promise<string | undefined> {
     const session = await vscode.authentication.getSession(
       GITHUB_PROVIDER,
-      GITHUB_SCOPES,
+      githubScopes(privateRepositoriesEnabled()),
       { silent: true },
     );
     return session?.accessToken;
@@ -24,7 +38,7 @@ export class VSCodeSessionProvider implements SessionProvider {
   ): Promise<AccountSession | undefined> {
     const session = await vscode.authentication.getSession(
       GITHUB_PROVIDER,
-      GITHUB_SCOPES,
+      githubScopes(privateRepositoriesEnabled()),
       options,
     );
     // Do not retain or return the raw session/token outside the API boundary.

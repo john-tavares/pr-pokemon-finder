@@ -20,6 +20,20 @@ async function verifyAuthentication(): Promise<void> {
   assert.ok(commands.includes(STATUS_COMMAND));
   assert.ok(commands.includes(CHECK_CONNECTION_COMMAND));
   assert.ok(commands.includes(INSPECT_PR_COMMAND));
+  assert.ok(commands.includes('prPokemonFinder.discoverPullRequests'));
+  assert.ok(commands.includes('prPokemonFinder.enablePrivateRepositories'));
+  assert.equal(
+    vscode.workspace
+      .getConfiguration('prPokemonFinder')
+      .get('includePrivateRepositories'),
+    false,
+  );
+  assert.equal(
+    extension.packageJSON.contributes.configuration.properties[
+      'prPokemonFinder.includePrivateRepositories'
+    ].scope,
+    'application',
+  );
   assert.deepEqual(api.getAuthenticationState(), { status: 'disconnected' });
   console.log(
     'Extension Host smoke test passed: commands registered, signed out, no OAuth prompt.',
