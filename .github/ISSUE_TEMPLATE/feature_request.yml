@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose a behavior, improvement, or public user story.
+title: '[Feature]: '
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or user need
+      description: Who needs this and what are they trying to accomplish?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the user-visible result, scope, and alternatives considered.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable outcomes and important edge cases.
+      placeholder: |
+        - Given ..., when ..., then ...
+    validations:
+      required: true
+  - type: input
+    id: story
+    attributes:
+      label: Related story or issue
+      description: Optional reference, such as US-06. Include its requirements above so no private tool access is needed.
