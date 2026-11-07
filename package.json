@@ -27,6 +27,16 @@
   "contributes": {
     "commands": [
       {
+        "command": "prPokemonFinder.checkGitHubConnection",
+        "title": "Check GitHub API Connection",
+        "category": "PR Pokémon Finder"
+      },
+      {
+        "command": "prPokemonFinder.inspectPullRequest",
+        "title": "Inspect Pull Request",
+        "category": "PR Pokémon Finder"
+      },
+      {
         "command": "prPokemonFinder.signIn",
         "title": "Sign in to GitHub",
         "category": "PR Pokémon Finder"

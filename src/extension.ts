@@ -9,6 +9,8 @@ import {
   STATUS_COMMAND,
 } from './auth/status';
 import { VSCodeSessionProvider } from './auth/vscode-session-provider';
+import { GitHubClient } from './github/client';
+import { registerGitHubCommands } from './github/commands';
 
 export interface ExtensionApi {
   getAuthenticationState(): AuthenticationState;
@@ -17,9 +19,10 @@ export interface ExtensionApi {
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<ExtensionApi> {
-  const authentication = new AuthenticationController(
-    new VSCodeSessionProvider(),
-  );
+  const provider = new VSCodeSessionProvider();
+  const authentication = new AuthenticationController(provider);
+  const github = new GitHubClient(provider);
+  registerGitHubCommands(context, github, authentication);
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     10,

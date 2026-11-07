@@ -1,6 +1,7 @@
 # Architecture
 
-US-01 implements native GitHub authentication. Other product components below
+US-01 implements native GitHub authentication; US-02 adds authenticated HTTPS
+API access for account verification and lookup of a known public PR. Other product components below
 remain planned. Capture design changes in a public issue or PR and update this
 document with them.
 
@@ -26,6 +27,33 @@ events during a sign-in are reconciled after that request finishes.
 See the [development guide](development.md) for the public US-01 criteria and tests,
 and the [VS Code authentication API](https://code.visualstudio.com/api/references/vscode-api#authentication)
 for provider behavior.
+
+## Implemented GitHub API access
+
+`src/github/client.ts` owns fixed-origin HTTPS GET requests and validated account/PR
+models. It reads an access token from the native session provider per request;
+tokens never enter authentication state, extension exports, files, or logs. The
+provider still strips tokens from the separate UI account lookup.
+
+The client uses a ten-second timeout, explicit REST version/media headers, and
+blocks redirects to prevent credential forwarding. Repository moves therefore
+require the current canonical URL. Known PR URLs must use HTTPS on GitHub.com;
+neither an arbitrary API host nor an API path is accepted from command input.
+
+`src/github/commands.ts` exposes explicit connection-check and PR-lookup actions.
+Only a 401 or absent session leads to disconnected state and a user-offered login.
+A rejected session requires `forceNewSession` on the next explicit login so the
+same invalid credential is not reused. Reauthentication can be canceled and retried.
+403/404 responses do not invalidate the account: they can mean denied access or
+a hidden private resource. No raw response bodies or provider errors reach users.
+
+Rate limits use Retry-After/reset metadata and a minimum sixty-second fallback.
+The client keeps only an in-memory cooldown timestamp and blocks new requests until
+it expires. It does not automatically retry. Network/server failures preserve
+authentication state. Automatic discovery, pagination, polling, and private-repository
+scope escalation are not implemented here.
+
+Reference: [GitHub REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api).
 
 ## Boundaries
 
