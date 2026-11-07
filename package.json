@@ -2,18 +2,59 @@
   "name": "pr-pokemon-finder",
   "version": "0.0.0",
   "private": true,
-  "description": "Community and development tooling for the planned PR Pokémon Finder VS Code extension.",
+  "displayName": "PR Pokémon Finder",
+  "publisher": "john-tavares",
+  "description": "Connect your GitHub account to PR Pokémon Finder inside VS Code.",
+  "preview": true,
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/src/extension.js",
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": {
+      "supported": true
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "prPokemonFinder.signIn",
+        "title": "Sign in to GitHub",
+        "category": "PR Pokémon Finder"
+      },
+      {
+        "command": "prPokemonFinder.showAuthenticationStatus",
+        "title": "Show Authentication Status",
+        "category": "PR Pokémon Finder"
+      }
+    ]
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/john-tavares/pr-pokemon-finder.git"
   },
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=24 <25",
+    "vscode": "^1.95.0"
   },
   "packageManager": "pnpm@11.25.0",
   "scripts": {
-    "check": "pnpm format:check && pnpm lint:md && pnpm test:tooling",
+    "check": "pnpm format:check && pnpm lint:md && pnpm test:tooling && pnpm test:unit",
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "test:unit": "pnpm build && node --test out/test/unit/*.test.js",
+    "test:extension": "pnpm build && node scripts/test-extension.mjs",
+    "package": "pnpm build && node -e \"require('node:fs').mkdirSync('dist', {recursive: true})\" && vsce package --no-dependencies --githubBranch master --out dist/pr-pokemon-finder.vsix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint:md": "markdownlint-cli2",
@@ -21,7 +62,12 @@
     "check:pr-title": "node scripts/check-pr-title.mjs"
   },
   "devDependencies": {
+    "@types/node": "20.19.0",
+    "@types/vscode": "1.95.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.1.0",
     "markdownlint-cli2": "0.24.0",
-    "prettier": "3.9.10"
+    "prettier": "3.9.10",
+    "typescript": "5.9.3"
   }
 }

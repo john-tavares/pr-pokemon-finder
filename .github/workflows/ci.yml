@@ -35,5 +35,9 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Check repository
         run: pnpm check
+      - name: Test minimum supported VS Code
+        run: xvfb-run -a pnpm test:extension
+      - name: Build installable VSIX
+        run: pnpm package
       - name: Check whitespace
         run: git diff --check

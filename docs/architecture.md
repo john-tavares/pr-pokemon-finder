@@ -1,7 +1,31 @@
-# Planned architecture
+# Architecture
 
-This document describes implementation direction, not existing application code.
-Capture design changes in a public issue or PR and update this document with them.
+US-01 implements native GitHub authentication. Other product components below
+remain planned. Capture design changes in a public issue or PR and update this
+document with them.
+
+## Implemented authentication
+
+`src/extension.ts` owns commands, status bar presentation, activation, and disposal.
+`src/auth/vscode-session-provider.ts` is the native API boundary: provider `github`,
+scope `read:user`, silent restoration, and explicit interactive sign-in. It strips
+tokens before returning account information. The pure authentication controller
+handles state, single-flight login, session changes, stale replies, and disposal.
+Status formatting lives separately and has no VS Code runtime dependency.
+
+The extension runs in the local UI extension host, including remote workspaces.
+It stores no authentication data itself and relies on VS Code for session reuse.
+Public extension exports contain connection status and an account label only.
+VS Code Accounts owns sign-out and revocation; there is no custom token store or
+project-wide sign-out action. Native provider failures are never printed verbatim.
+
+Session restore is silent. Interactive login only follows a command or explicit
+status-bar click. Session add/change/remove events trigger a fresh silent lookup;
+events during a sign-in are reconciled after that request finishes.
+
+See the [development guide](development.md) for the public US-01 criteria and tests,
+and the [VS Code authentication API](https://code.visualstudio.com/api/references/vscode-api#authentication)
+for provider behavior.
 
 ## Boundaries
 
