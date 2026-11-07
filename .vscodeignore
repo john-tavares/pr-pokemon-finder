@@ -4,3 +4,6 @@
 !LICENSE
 !CHANGELOG.md
 !out/src/**/*.js
+!media/capture.css
+!media/capture.js
+!THIRD_PARTY_NOTICES.md

@@ -118,8 +118,8 @@ first seen with private access enabled. No tokens, raw API bodies, or workspace
 paths are persisted and no data is enrolled in Settings Sync.
 
 Storage failures or unknown/corrupt schemas are surfaced without resetting data.
-State is persisted before publishing a successful check. Collection UI and the
-retro pixel-art presenter are still planned. No merge/escape transition is needed.
+State is persisted before publishing a successful check. The retro presenter is
+now implemented; full collection UI remains planned. No merge/escape transition is needed.
 
 ## Implemented PR identity
 
@@ -169,13 +169,52 @@ The controller exposes pending captures only after the transaction commits.
 `confirmPresentation` records acknowledgement separately and preserves the reward
 even if acknowledgement storage fails. It is an internal presenter integration
 point, not an exported extension API or command. Opening a PR from the native
-picker does not acknowledge it. There is no automatic presenter yet, so pending
-scenes remain pending. A future presenter must acknowledge an actually displayed
-or deliberately dismissed scene and coordinate a single presentation consumer
-across windows; the writer lock alone does not claim an in-progress animation.
+picker does not acknowledge it. The retro presenter now acknowledges an actually
+visible scene when the user continues/closes it. A separate cross-window gate
+claims the presentation while the panel is open; it never holds the snapshot
+writer lock during animation or UI interaction.
 An interrupted scene before acknowledgement can be retried; an acknowledged one
 is not automatically replayed. Exactly-once rendering across an abrupt crash
 between display and acknowledgement is not promised.
+
+## Retro visual presenter
+
+`src/presentation/register.ts` observes committed captures and drains a single
+queue. `FilePresentationGate` holds `account-<id>.presentation.lock` across the
+scene; inside that gate the controller rereads authoritative pending state before
+display. Another window cannot show the same scene concurrently or replay a stale
+local item after it has been acknowledged. Auth/access changes, paused monitoring,
+disposal, or relevant presentation configuration changes close stale panels
+without acknowledging them. No remote PR is modified.
+
+The webview opens beside the editor without taking focus. Its ready message is
+accepted only while the panel is visible, and the browser script starts only when
+the document is visible. A user dismissal then acknowledges it; context/shutdown
+cancellation does not. An unrendered scene is left pending. Multiple captures
+advance sequentially after Continue/close; no animation panels overlap locally.
+A busy cross-window gate leaves the item pending for a later poll/manual retry.
+The same conservative orphan-lock recovery rule applies to presentation locks.
+
+`media/capture.js` runs encounter → throw → shake → guaranteed capture. Skip,
+Escape/close, OS reduced motion, and an explicit reduced-motion preference are
+supported. Reduced motion goes directly to the textual success state. The live
+caption announces status and buttons support keyboard focus. The preview command
+uses synthetic Pikachu metadata only and never reads/writes capture storage.
+
+`src/presentation/catalog.ts` supplies names for species 1–151 locally. Runtime
+sprites come from one fixed public PNG path per species via a separate loader
+with no credential provider. The loader has a five-second timeout, denies
+redirects, checks MIME/PNG header/dimensions, limits streamed bytes to 128 KiB, and
+caches successful requests in memory. Failure uses a clearly labeled question-mark
+fallback; Retry sprite does not reroll or recreate the capture. Disabling remote
+artwork prevents these calls entirely. See THIRD_PARTY_NOTICES.md for rights.
+
+`renderSceneHtml` escapes all metadata and uses external project-local CSS/JS,
+a random script nonce, and a restrictive CSP: images are PNG data URIs only,
+network connections/forms are disabled, and command URIs are disabled. Webview
+messages contain only allowlisted action types; PR URLs come from the validated
+capture, never message input. No remote script, font, CDN UI, audio, or sprite file
+is bundled. Original CSS draws the landscape and geometric ball.
 
 ## Transactional local storage
 
@@ -238,7 +277,7 @@ Do not erase records because a request failed or a result page is incomplete.
 - Future species-pool expansion, rarity, and Shiny odds without changing prior assignments.
 - Single-consumer presentation coordination across windows and cross-profile behavior.
 - Whether GitHub Enterprise is in the initial supported scope.
-- Exact retro scene layout, accessibility behavior, and animation controls.
+- Further accessibility/scene customization and full collection-screen design.
 - Asset sources, distribution permissions, attribution, and offline behavior.
 
 These are not settled requirements. Resolve the relevant decisions in an issue or

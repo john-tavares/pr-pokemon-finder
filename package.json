@@ -28,6 +28,24 @@
     "configuration": {
       "title": "PR Pokémon Finder",
       "properties": {
+        "prPokemonFinder.presentation.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Automatically show retro encounter/capture scenes after new PR captures are saved. Disabling does not stop captures; use Show Pending Capture Animations manually."
+        },
+        "prPokemonFinder.presentation.remoteArtwork": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Load Pokémon sprites from raw.githubusercontent.com/PokeAPI/sprites at runtime. Sends only the species number (never tokens or PR metadata); cached in memory. Disable for an offline text/silhouette fallback. Image rights remain with their owners."
+        },
+        "prPokemonFinder.presentation.reducedMotion": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Show the capture result without animated movement. OS and VS Code reduced-motion preferences are also respected."
+        },
         "prPokemonFinder.polling.enabled": {
           "type": "boolean",
           "default": true,
@@ -51,6 +69,16 @@
       }
     },
     "commands": [
+      {
+        "command": "prPokemonFinder.previewCaptureAnimation",
+        "title": "Preview Capture Animation",
+        "category": "PR Pokémon Finder"
+      },
+      {
+        "command": "prPokemonFinder.showCaptureAnimations",
+        "title": "Show Pending Capture Animations",
+        "category": "PR Pokémon Finder"
+      },
       {
         "command": "prPokemonFinder.showMonitoringStatus",
         "title": "Show Monitoring Status",

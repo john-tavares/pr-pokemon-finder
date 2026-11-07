@@ -95,6 +95,109 @@ class Timer {
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test('two presenter windows cannot replay the same capture, including a stale local queue', async () => {
+  const store = new Store();
+  const timer = new Timer();
+  let busy = false;
+  const gate = {
+    run: async (_id: number, work: () => Promise<boolean>) => {
+      if (busy) return false;
+      busy = true;
+      try {
+        return await work();
+      } finally {
+        busy = false;
+      }
+    },
+  };
+  const first = new PollingController(
+    async () => batch([pr(1)]),
+    store,
+    () => {},
+    timer.schedule,
+    () => Date.parse(start),
+  );
+  const second = new PollingController(
+    async () => batch([pr(1)]),
+    store,
+    () => {},
+    timer.schedule,
+    () => Date.parse(start),
+  );
+  first.configure(enabled);
+  await first.pollNow();
+  second.configure(enabled);
+  await second.pollNow();
+  let finish!: (displayed: boolean) => void;
+  let displays = 0;
+  const showing = first.presentNext(gate, async (capture, current) => {
+    displays++;
+    assert.ok(current());
+    assert.equal(capture.key, pullRequestKey(pr(1)));
+    return new Promise<boolean>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await flush();
+  assert.equal(
+    await second.presentNext(gate, async () => {
+      displays++;
+      return true;
+    }),
+    false,
+  );
+  finish(true);
+  assert.equal(await showing, true);
+  assert.equal(
+    await second.presentNext(gate, async () => {
+      displays++;
+      return true;
+    }),
+    false,
+  );
+  assert.equal(displays, 1);
+  assert.equal(second.pendingCaptures.length, 0);
+  assert.equal(decodeIndex(store.read(123)).presentations[0]?.status, 'shown');
+  first.dispose();
+  second.dispose();
+});
+
+test('discarded or interrupted scenes leave a persisted capture pending and never acknowledge another account', async () => {
+  const store = new Store();
+  const timer = new Timer();
+  const controller = new PollingController(
+    async () => batch([pr(1)]),
+    store,
+    () => {},
+    timer.schedule,
+    () => Date.parse(start),
+  );
+  const gate = {
+    run: async (_id: number, work: () => Promise<boolean>) => work(),
+  };
+  controller.configure(enabled);
+  await controller.pollNow();
+  assert.equal(await controller.presentNext(gate, async () => false), false);
+  assert.equal(
+    decodeIndex(store.read(123)).presentations[0]?.status,
+    'pending',
+  );
+  assert.equal(
+    await controller.presentNext(gate, async (_capture, current) => {
+      controller.configure({ ...enabled, active: false });
+      assert.equal(current(), false);
+      return true;
+    }),
+    false,
+  );
+  assert.equal(decodeIndex(store.read(123)).captures.length, 1);
+  assert.equal(
+    decodeIndex(store.read(123)).presentations[0]?.status,
+    'pending',
+  );
+  controller.dispose();
+});
+
 test('capture and presentation intent are distinct and repeated snapshots preserve immutable rewards', () => {
   const first = capturePending(
     reconcilePolling(empty(), batch([pr(1)]), false, start).index,

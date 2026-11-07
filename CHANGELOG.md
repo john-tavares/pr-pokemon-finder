@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Present new PR captures automatically with local species names, runtime sprites, and original retro encounter/throw/shake/confirmation scenes (US-09/16/19/27/28).
+- Add safe preview/manual presentation commands, a cross-window scene gate, skip/close actions, reduced motion, and offline artwork fallback.
+- Bundle original webview code and third-party notices, but no Pokémon sprite files.
+
 - Persist one immutable capture per eligible new PR, independently of merge or closure (US-06).
 - Separate pending/shown presentation acknowledgements from captured rewards; no animations are added yet.
 - Add an initial deterministic species-number assignment (1–151), without artwork, rarity, or Shiny variants.

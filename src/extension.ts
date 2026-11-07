@@ -14,6 +14,7 @@ import { registerGitHubCommands } from './github/commands';
 import { registerDiscoveryCommands } from './github/discovery-commands';
 import { registerPolling } from './polling/vscode-polling';
 import type { PollingStatus } from './polling/controller';
+import { registerCapturePresentation } from './presentation/register';
 
 export interface ExtensionApi {
   getAuthenticationState(): AuthenticationState;
@@ -29,6 +30,7 @@ export async function activate(
   registerGitHubCommands(context, github, authentication);
   registerDiscoveryCommands(context, github, authentication, provider);
   const polling = registerPolling(context, github, authentication);
+  registerCapturePresentation(context, polling);
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     10,

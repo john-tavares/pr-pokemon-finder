@@ -5,8 +5,9 @@ and US-02 authenticated API access plus US-03 manual authored-PR discovery with
 optional private access, plus US-04 automatic polling and pending encounter detection,
 US-05 canonical PR identity with legacy-index migration, and US-06 idempotent
 capture storage with a minimal deterministic species assignment,
-are implemented;
-all other story capabilities below remain planned. Track progress through public
+are implemented. The initial US-09/16/19/27/28 visual flow now adds names, runtime
+sprites, automatic retro encounter/capture scenes, queued acknowledgement, and preview.
+Full collection UI, rarity/Shiny, and other capabilities remain planned. Track progress through public
 [issues](https://github.com/john-tavares/pr-pokemon-finder/issues) and pull requests.
 
 | Area               | Planned capabilities                                                 | Existing story references         |
@@ -35,10 +36,12 @@ A newly opened eligible PR grants exactly one Pokémon immediately when discover
 Persist the capture, then present a retro pixel-art encounter and guaranteed capture
 sequence. Later merge, closure, or reopening never grants/removes a Pokémon.
 US-07, US-08, US-17, and US-20 were removed; identifiers are not renumbered.
-US-27 and US-28 are P0 core features, not optional post-release polish. They remain
-unimplemented: US-06 supplies persistence and acknowledgement boundaries, not animation.
+US-27 and US-28 are P0 core features, not optional post-release polish. Their first
+implementation now uses original CSS/JS animation and a runtime sprite, including
+skip/close, reduced motion, and a clear offline fallback.
 US-26 now selects a companion from the captured collection; US-31 counts PR-opening days.
 
 The US-06 species-number allocator anticipates a dependency of US-09/US-10; it does
-not complete the user-facing encounter experience. Names/sprites, automatic scene
-presentation, Pokédex UI, rarity, and Shiny variants still need their own work.
+not alone complete the user-facing encounter experience. The new visual flow adds
+names/sprites and automatic scene presentation; Pokédex UI, rarity, Shiny variants,
+and rights review before Marketplace release remain follow-up work.

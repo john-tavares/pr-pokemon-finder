@@ -2,12 +2,39 @@
 
 Turn your GitHub pull requests into Pokémon encounters inside Visual Studio Code.
 
-**Status: pre-release / capture synchronization prototype.** US-01 through US-06 are implemented:
+**Status: pre-release / playable capture prototype.** US-01 through US-06 are implemented:
 native sign-in, API access, cross-repository discovery, and automatic polling with
 a canonical PR index and idempotent automatic captures. Each eligible new PR now
 receives a deterministic species number, persisted before any presentation.
-There is no Marketplace release yet. Sprites, retro encounter/capture animations,
-automatic visual feedback, and the Pokédex screen remain planned.
+The first visual flow (US-09/16/19/27/28) now presents a name/sprite, retro encounter,
+guaranteed capture, and confirmation. There is no Marketplace release yet, and
+the full Pokédex screen remains planned.
+
+## Test your first capture
+
+1. Install the generated VSIX or run this checkout with **F5**.
+2. Run **PR Pokémon Finder: Preview Capture Animation** to see a Pikachu demo
+   immediately, without GitHub sign-in or changes to the collection.
+3. Sign in and let the first synchronization finish (historical PRs do not grant rewards).
+4. Open a **new** PR authored by that account. Wait for polling or run **Check for
+   New Pull Requests Now**. Search indexing may delay detection.
+5. The scene opens beside the editor: encounter → ball throw → guaranteed capture
+   → confirmation. Click **Continue** to dismiss it and advance to the next capture.
+
+Captures are saved **before** animation. Skip/close never loses a Pokémon; merge
+is not required. A visible scene deliberately closed by the user is acknowledged
+and will not automatically replay. Closing a not-yet-visible scene, switching
+accounts/scopes, or shutting down before acknowledgement leaves it recoverable.
+
+Sprites require internet access to the public PokeAPI/sprites host; no GitHub token
+or PR metadata is sent. A failed image load shows a clearly marked fallback,
+not a failed capture. Use **Retry sprite** or try again when connected.
+**Presentation: Enabled** controls automatic scenes, **Presentation: Remote Artwork**
+controls external image requests, and **Presentation: Reduced Motion** skips
+movement. OS/VS Code reduced-motion preferences are respected too.
+With automatic scenes off, use **Show Pending Capture Animations** manually.
+
+![Sprite-free capture confirmation preview](docs/images/capture-result.jpg)
 
 ## Try GitHub authentication
 
@@ -89,8 +116,8 @@ Seconds** in PR Pokémon Finder Settings (60–3600 seconds).
 The initial assignment uses species numbers 1–151 with a versioned deterministic
 seed. There is no rarity or Shiny selection yet. **Show Pending Capture
 Presentations** lists the species number and originating PR; selecting it opens
-GitHub, not an animation, and does not mark the presentation as shown. Captures
-are already saved, while the visual presenter is still to be implemented.
+GitHub, not an animation, and does not mark the presentation as shown. Automatic
+scenes and **Show Pending Capture Animations** are the actual visual presenter.
 Private-mode captures are hidden in public-only mode but are not deleted.
 
 Local writes are serialized across monitoring windows with an exclusive file lock
@@ -154,5 +181,6 @@ third-party material they add.
 Pokémon names, characters, and artwork belong to their respective owners. This is
 an independent fan project with no affiliation or endorsement. The MIT license
 does not grant rights to third-party trademarks or artwork. No Pokémon sprites
-are bundled in this foundation; asset sources and permissions must be documented
-before assets are distributed.
+are bundled in the repository or VSIX. Runtime image sources, rights caveats,
+network behavior, and original UI attribution are documented in
+[Third-party notices](THIRD_PARTY_NOTICES.md). Rights review remains a release requirement.

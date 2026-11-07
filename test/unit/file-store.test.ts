@@ -4,6 +4,7 @@ import { mkdtemp, readFile, writeFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FilePollingStore } from '../../src/polling/file-store';
+import { FilePresentationGate } from '../../src/presentation/gate';
 import { decodeIndex } from '../../src/polling/index';
 
 async function fixture(t: TestContext) {
@@ -101,5 +102,43 @@ test('invalid account IDs and invalid transaction output are rejected without du
   await assert.rejects(
     store.update(123, () => ({ ...decodeIndex(undefined), known: ['bad'] })),
   );
+  assert.deepEqual(await readdir(directory), []);
+});
+
+test('presentation gate permits only one scene per account across windows and releases after dismissal/failure', async (t) => {
+  const directory = await fixture(t);
+  const first = new FilePresentationGate(directory);
+  const second = new FilePresentationGate(directory);
+  let release!: () => void;
+  let started!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const active = first.run(123, async () => {
+    started();
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return true;
+  });
+  await ready;
+  let shown = false;
+  assert.equal(
+    await second.run(123, async () => {
+      shown = true;
+      return true;
+    }),
+    false,
+  );
+  assert.equal(shown, false);
+  assert.equal(await second.run(456, async () => true), true);
+  release();
+  assert.equal(await active, true);
+  await assert.rejects(
+    first.run(123, async () => {
+      throw new Error('Presenter failed');
+    }),
+  );
+  assert.equal(await second.run(123, async () => true), true);
   assert.deepEqual(await readdir(directory), []);
 });
