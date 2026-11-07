@@ -1,4 +1,5 @@
 import { GitHubApiError, parsePullRequestUrl, type GitHubUser } from './client';
+import { pullRequestKey } from './identity';
 
 export interface DiscoveredPullRequest {
   readonly host: 'github.com';
@@ -110,7 +111,7 @@ export async function discoverPullRequests(
   };
   checkCancellation();
   const account = await client.getAuthenticatedUser();
-  const items = new Map<number, DiscoveredPullRequest>();
+  const items = new Map<string, DiscoveredPullRequest>();
   let totalCount: number | undefined;
   let complete = true;
   let received = 0;
@@ -140,8 +141,9 @@ export async function discoverPullRequests(
     received += data.items.length;
     for (const value of data.items) {
       const item = mapPullRequest(value);
-      if (items.has(item.id)) complete = false;
-      items.set(item.id, item);
+      const key = pullRequestKey(item);
+      if (items.has(key)) complete = false;
+      items.set(key, item);
     }
     if (data.items.length < 100 || received >= totalCount) break;
   }

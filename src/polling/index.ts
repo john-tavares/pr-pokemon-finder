@@ -1,7 +1,8 @@
 import type { DiscoveryResult } from '../github/discovery';
 import { parsePullRequestUrl } from '../github/client';
+import { isPullRequestKey, pullRequestKey } from '../github/identity';
 
-export interface PendingEncounter {
+interface LegacyPendingEncounter {
   readonly id: number;
   readonly owner: string;
   readonly repository: string;
@@ -12,19 +13,19 @@ export interface PendingEncounter {
   readonly observedState: 'open' | 'closed';
 }
 
-export interface PollingIndex {
+interface LegacyPollingIndex {
   readonly version: 1;
   readonly known: readonly number[];
-  readonly pending: readonly PendingEncounter[];
+  readonly pending: readonly LegacyPendingEncounter[];
   readonly baselines: Partial<Record<'public' | 'private', string>>;
 }
 
-export function decodeIndex(value: unknown): PollingIndex {
+function decodeLegacyIndex(value: unknown): LegacyPollingIndex {
   if (value === undefined)
     return { version: 1, known: [], pending: [], baselines: {} };
   if (!value || typeof value !== 'object')
     throw new Error('Invalid polling index.');
-  const data = value as PollingIndex;
+  const data = value as LegacyPollingIndex;
   const date = (input: unknown) =>
     typeof input === 'string' && Number.isFinite(Date.parse(input));
   const id = (input: unknown) =>
@@ -74,6 +75,83 @@ export function decodeIndex(value: unknown): PollingIndex {
   return data;
 }
 
+export interface PendingEncounter extends LegacyPendingEncounter {
+  readonly host: 'github.com';
+  readonly key: string;
+}
+
+export interface PollingIndex {
+  readonly version: 2;
+  readonly known: readonly string[];
+  /** V1 history had only GitHub.com API IDs; retain until seen again. */
+  readonly legacyKnownIds: readonly number[];
+  readonly pending: readonly PendingEncounter[];
+  readonly baselines: LegacyPollingIndex['baselines'];
+}
+
+export function decodeIndex(value: unknown): PollingIndex {
+  if (
+    value === undefined ||
+    (value as { version?: unknown } | null)?.version === 1
+  ) {
+    const legacy = decodeLegacyIndex(value);
+    const pending = legacy.pending.map((item): PendingEncounter => ({
+      ...item,
+      host: 'github.com',
+      key: pullRequestKey({ ...item, host: 'github.com' }),
+    }));
+    const migrated = new Set(pending.map((item) => item.id));
+    return decodeIndex({
+      version: 2,
+      known: pending.map((item) => item.key),
+      legacyKnownIds: legacy.known.filter((id) => !migrated.has(id)),
+      pending,
+      baselines: { ...legacy.baselines },
+    });
+  }
+  const data = value as PollingIndex | null;
+  if (
+    !data ||
+    data.version !== 2 ||
+    !Array.isArray(data.known) ||
+    !data.known.every(isPullRequestKey) ||
+    new Set(data.known).size !== data.known.length ||
+    !Array.isArray(data.legacyKnownIds) ||
+    !Array.isArray(data.pending)
+  ) {
+    throw new Error('Unsupported or invalid polling index.');
+  }
+  // Reuse strict v1 validation for retained IDs and pending reference metadata.
+  decodeLegacyIndex({
+    version: 1,
+    known: data.legacyKnownIds,
+    pending: [],
+    baselines: data.baselines,
+  });
+  for (const item of data.pending) {
+    decodeLegacyIndex({
+      version: 1,
+      known: [item?.id],
+      pending: [item],
+      baselines: data.baselines,
+    });
+  }
+  const known = new Set(data.known);
+  if (
+    new Set(data.pending.map((item) => item.key)).size !==
+      data.pending.length ||
+    data.pending.some(
+      (item) =>
+        item.host !== 'github.com' ||
+        item.key !== pullRequestKey(item) ||
+        !known.has(item.key),
+    )
+  ) {
+    throw new Error('Inconsistent polling identity.');
+  }
+  return data;
+}
+
 export function reconcilePolling(
   previous: PollingIndex,
   result: DiscoveryResult,
@@ -83,15 +161,21 @@ export function reconcilePolling(
   const mode = includePrivate ? 'private' : 'public';
   const baseline = previous.baselines[mode] ?? startedAt;
   const known = new Set(previous.known);
-  const pending = new Map(previous.pending.map((item) => [item.id, item]));
+  const legacyKnownIds = new Set(previous.legacyKnownIds);
+  const pending = new Map(previous.pending.map((item) => [item.key, item]));
   const added: PendingEncounter[] = [];
   for (const pr of result.items) {
+    const key = pullRequestKey(pr);
+    const wasLegacy = pr.host === 'github.com' && legacyKnownIds.delete(pr.id);
     if (
-      !known.has(pr.id) &&
-      !pending.has(pr.id) &&
+      !wasLegacy &&
+      !known.has(key) &&
+      !pending.has(key) &&
       Date.parse(pr.createdAt) >= Date.parse(baseline)
     ) {
       const encounter: PendingEncounter = {
+        key,
+        host: pr.host,
         id: pr.id,
         owner: pr.owner,
         repository: pr.repository,
@@ -101,15 +185,16 @@ export function reconcilePolling(
         accessMode: mode,
         observedState: pr.state,
       };
-      pending.set(pr.id, encounter);
+      pending.set(key, encounter);
       added.push(encounter);
     }
-    known.add(pr.id);
+    known.add(key);
   }
   return {
     index: {
-      version: 1,
+      version: 2,
       known: [...known],
+      legacyKnownIds: [...legacyKnownIds],
       pending: [...pending.values()],
       baselines: { ...previous.baselines, [mode]: baseline },
     },

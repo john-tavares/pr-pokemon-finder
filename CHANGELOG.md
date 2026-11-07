@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Identify PRs by a canonical host/owner/repository/number key in discovery and polling (US-05).
+- Migrate the polling index to schema v2 without discarding pending encounters or legacy history.
+
 - Poll authored PRs automatically while connected, using a default sixty-second delay (US-04).
 - Keep a minimal account-scoped known-PR index and pending encounter queue, preserving state through failures and restarts.
 - Add monitoring status, manual check, pending queue commands, and global polling settings.

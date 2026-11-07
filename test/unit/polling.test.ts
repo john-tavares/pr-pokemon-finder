@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { GitHubApiError } from '../../src/github/client';
+import { pullRequestKey } from '../../src/github/identity';
 import type {
   DiscoveryResult,
   DiscoveredPullRequest,
@@ -84,6 +85,80 @@ class Timer {
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test('same PR number across repositories stays distinct and repeat/case changes do not requeue', () => {
+  const first = pr(1);
+  const second = {
+    ...pr(2),
+    number: 1,
+    repository: 'other',
+    url: 'https://github.com/trainer/other/pull/1',
+  };
+  const initial = reconcilePolling(
+    empty(),
+    batch([first, second]),
+    false,
+    start,
+  );
+  assert.equal(initial.index.pending.length, 2);
+  assert.notEqual(initial.index.pending[0]?.key, initial.index.pending[1]?.key);
+  const restored = decodeIndex(JSON.parse(JSON.stringify(initial.index)));
+  const repeated = reconcilePolling(
+    restored,
+    batch([{ ...first, id: 999, owner: 'TRAINER', title: 'renamed' }, second]),
+    false,
+    later,
+  );
+  assert.equal(repeated.index.known.length, 2);
+  assert.equal(repeated.index.pending.length, 2);
+  assert.deepEqual(repeated.added, []);
+});
+
+test('v1 migration preserves pending records, baselines and unseen legacy history', () => {
+  const pending = reconcilePolling(empty(), batch([pr(1)]), true, start).index
+    .pending[0]!;
+  const { key: _key, host: _host, ...legacyPending } = pending;
+  const legacy = {
+    version: 1,
+    known: [1, 2, 3],
+    pending: [legacyPending],
+    baselines: { private: start },
+  };
+  const migrated = decodeIndex(legacy);
+  assert.equal(migrated.version, 2);
+  assert.deepEqual(migrated.pending, [pending]);
+  assert.deepEqual(migrated.legacyKnownIds, [2, 3]);
+  assert.deepEqual(migrated.baselines, legacy.baselines);
+  assert.equal(legacy.version, 1);
+  const next = reconcilePolling(
+    migrated,
+    batch([pr(1), pr(2), pr(4)]),
+    true,
+    later,
+  );
+  assert.deepEqual(
+    next.added.map((item) => item.id),
+    [4],
+  );
+  assert.deepEqual(next.index.legacyKnownIds, [3]);
+  assert.deepEqual(decodeIndex(next.index), next.index);
+});
+
+test('v2 rejects inconsistent keys, hosts, membership and duplicate pending entries', () => {
+  const index = reconcilePolling(empty(), batch([pr(1)]), false, start).index;
+  for (const change of [
+    { known: ['bad'] },
+    { known: [...index.known, ...index.known] },
+    { legacyKnownIds: [1, 1] },
+    { legacyKnownIds: ['1'] },
+    { pending: [...index.pending, ...index.pending] },
+    { pending: [{ ...index.pending[0], key: pullRequestKey(pr(2)) }] },
+    { pending: [{ ...index.pending[0], host: 'evil.example' }] },
+    { known: [] },
+    { pending: [null] },
+  ])
+    assert.throws(() => decodeIndex({ ...index, ...change }));
+});
+
 test('initial historical PRs establish a baseline without creating retroactive encounters', () => {
   const result = reconcilePolling(
     empty(),
@@ -91,7 +166,7 @@ test('initial historical PRs establish a baseline without creating retroactive e
     false,
     start,
   );
-  assert.deepEqual(result.index.known, [1]);
+  assert.deepEqual(result.index.known, [pullRequestKey(pr(1))]);
   assert.deepEqual(result.added, []);
   assert.equal(result.index.baselines.public, start);
 });
@@ -132,7 +207,10 @@ test('partial snapshots preserve missing known PRs and do not enqueue delayed hi
     false,
     later,
   );
-  assert.deepEqual(next.index.known, [1, 2, 3]);
+  assert.deepEqual(
+    next.index.known,
+    [1, 2, 3].map((id) => pullRequestKey(pr(id))),
+  );
   assert.deepEqual(
     next.added.map((item) => item.id),
     [3],
@@ -254,6 +332,45 @@ test('temporary API failures preserve durable state and schedule another attempt
   assert.equal(controller.status.error, 'network');
   assert.equal(timer.active.length, 1);
   controller.dispose();
+});
+
+test('controller commits migrated history only after successful storage and preserves v1 on write failure', async () => {
+  for (const fail of [false, true]) {
+    const store = new Store();
+    const legacy = {
+      version: 1,
+      known: [1, 2],
+      pending: [],
+      baselines: { public: start },
+    };
+    store.entries.set(123, structuredClone(legacy));
+    store.fail = fail;
+    const timer = new Timer();
+    const controller = new PollingController(
+      async () => batch([pr(1), pr(3)]),
+      store,
+      () => {},
+      timer.schedule,
+      () => Date.parse(later),
+    );
+    controller.configure(enabled);
+    await controller.pollNow();
+    if (fail) {
+      assert.deepEqual(store.read(123), legacy);
+      assert.equal(controller.status.error, 'storage-error');
+      assert.equal(controller.pendingEncounters.length, 0);
+    } else {
+      const saved = decodeIndex(store.read(123));
+      assert.equal(saved.version, 2);
+      assert.deepEqual(saved.legacyKnownIds, [2]);
+      assert.equal(controller.status.knownCount, 3);
+      assert.deepEqual(
+        controller.pendingEncounters.map((item) => item.id),
+        [3],
+      );
+    }
+    controller.dispose();
+  }
 });
 
 test('rate limits extend the next delay instead of opening consent prompts or retry loops', async () => {

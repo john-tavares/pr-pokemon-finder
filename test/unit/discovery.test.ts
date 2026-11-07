@@ -40,6 +40,30 @@ const clientFor = (response: unknown): DiscoveryClient => ({
 const invalid = (error: unknown) =>
   error instanceof GitHubApiError && error.code === 'invalid-response';
 
+test('discovery deduplicates by canonical PR identity rather than response ID', async () => {
+  const original = pull(1);
+  const duplicate = {
+    ...pull(99, 'TEAM-ONE', 'PROJECT'),
+    number: 1,
+    html_url: 'https://github.com/TEAM-ONE/PROJECT/pull/1',
+  };
+  const other = {
+    ...pull(2, 'other-team'),
+    number: 1,
+    html_url: 'https://github.com/other-team/project/pull/1',
+  };
+  const result = await discoverPullRequests(
+    clientFor(page([original, duplicate, other])),
+    { includePrivate: false },
+  );
+  assert.equal(result.items.length, 2);
+  assert.equal(result.complete, false);
+  assert.deepEqual(
+    result.items.map((item) => item.number),
+    [1, 1],
+  );
+});
+
 test('discovers authored PRs across repositories without workspace or remote configuration', async () => {
   const requests: string[] = [];
   const client = new GitHubClient(

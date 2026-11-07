@@ -2,7 +2,8 @@
 
 US-01 implements native GitHub authentication; US-02 adds authenticated HTTPS
 API access; US-03 adds cross-repository discovery and optional private consent;
-US-04 adds automatic polling and a minimal pending-encounter index. Other components below
+US-04 adds automatic polling and a minimal pending-encounter index; US-05 adds canonical
+PR identities and an index migration. Other components below
 remain planned. Capture design changes in a public issue or PR and update this
 document with them.
 
@@ -104,13 +105,13 @@ index. Each public/private access mode gets a baseline at its first successful
 query's start time. Unknown PRs older than that cutoff become known without
 retroactive encounters. Unknown PRs created since the cutoff queue pending
 encounters automatically, including PRs already closed when first observed.
-Known IDs are shared across access modes, preventing requeueing when scopes change.
+Known canonical keys are shared across access modes, preventing requeueing when scopes change.
 Missing results are never interpreted as deletion. Partial results can add known
 records while retaining all previous records and showing a partial status.
 
 `src/polling/vscode-polling.ts` adapts VS Code settings, authentication state,
 timers, status/queue commands, and `globalState`. Keys use the GitHub account ID;
-schema version 1 stores API IDs, separate scope baselines, and minimal pending
+schema version 2 stores canonical keys, retained legacy API IDs, separate scope baselines, and minimal pending
 references/detection timestamps. Tokens, raw API bodies, and workspace paths are
 not stored. No keys are enrolled in Settings Sync. Public-only mode hides pending
 records discovered in private mode; this conservatively includes public PRs first
@@ -122,6 +123,32 @@ for US-09; Pokémon generation, merge/escape transitions, collection UI, and ful
 encounter storage are not implemented here. The first implementation targets one
 active polling window; it does not provide an inter-process storage lock. Cross-window
 coordination belongs with stronger synchronization/idempotency work.
+
+## Implemented PR identity
+
+`src/github/identity.ts` defines `pr:v1:<host>/<owner>/<repository>/<number>`.
+Host, owner, and repository use lowercase ASCII; the positive safe-integer PR
+number is serialized in decimal. Components are validated before joining, so
+separators, URL escapes, whitespace, ports, and unsafe numbers cannot create
+ambiguous keys. The same PR number in another owner/repository/host is distinct.
+Titles, state, dates, URL fragments, and API response IDs are not part of the key.
+Discovery deduplication and the polling comparison/queue use this same function.
+
+The identity helper can distinguish DNS hosts, but network access and pending
+records still support **GitHub.com only**. This does not add Enterprise support.
+Identity is a canonical repository locator: repository renames/transfers require
+an explicit future alias policy; they are not automatically linked by API ID.
+
+V1 indexes are validated before migration. Pending records already contain enough
+metadata to derive keys immediately, preserving their detection timestamps and
+access modes. Historical records with only API IDs remain in `legacyKnownIds`
+until rediscovered; their canonical keys are then recorded without requeueing.
+Unseen legacy history and scope baselines are retained. Known counts include both
+keyed records and unresolved legacy IDs. The original `polling.v1.account.<id>`
+storage slot is intentionally retained; the embedded schema is now v2. Migration
+is written only as part of a successful polling commit, so failures do not erase
+the old data. Older extension builds reject v2 rather than reset it; downgrade
+migration is not provided. Corrupt or future schemas remain untouched.
 
 ## Boundaries
 
