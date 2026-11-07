@@ -13,6 +13,7 @@ export function registerPolling(
   const polling = new PollingController(
     (options) => discoverPullRequests(github, options),
     {
+      // Keep the original storage slot so v1 data is migrated, not abandoned.
       read: (id) => context.globalState.get(`polling.v1.account.${id}`),
       write: async (id, index) => {
         await context.globalState.update(`polling.v1.account.${id}`, index);

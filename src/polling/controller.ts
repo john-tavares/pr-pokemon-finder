@@ -132,7 +132,7 @@ export class PollingController implements Disposable {
           );
           this.update({
             phase: result.complete ? 'idle' : 'partial',
-            knownCount: index.known.length,
+            knownCount: index.known.length + index.legacyKnownIds.length,
             pendingCount: this.pending.length,
             lastCheckedAt: new Date(this.now()).toISOString(),
           });

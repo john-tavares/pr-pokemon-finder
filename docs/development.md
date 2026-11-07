@@ -228,6 +228,34 @@ or delayed indexed results. The UI warns about detected partial batches; it does
 not claim a complete permanent history. Search `state` is open/closed; an absent
 `mergedAt` is unknown. Do not infer capture/escape transitions from it.
 
+## US-05 acceptance and verification
+
+Public requirements:
+
+1. Identify each PR using host, owner, repository, and PR number.
+2. Keep equal PR numbers in different repositories distinct.
+3. Resolve the same PR to the same local key across repeated checks and restarts.
+
+The pure identity helper emits versioned, lowercase canonical keys. Discovery
+and polling both use it; display metadata and API response IDs do not change a
+key. Existing v1 polling records migrate to v2 while preserving baselines,
+pending encounters, and unresolved historical IDs. See the architecture guide
+for migration and repository-rename limitations.
+
+Run `pnpm check`. Unit tests cover all identity components, case normalization,
+URL variants, invalid inputs, cross-repository equal numbers, canonical discovery
+deduplication, repeated polling/restarts, v1 migration, and malformed v2 indexes.
+Use synthetic data; real credentials are not needed. For an optional live check,
+create PRs with equal numbers in two test repositories, run a manual poll, and
+verify both appear independently and remain single entries after reloading.
+Never edit a personal VS Code storage database to test migration.
+
+No new UI, commands, scopes, or network destinations are added by US-05.
+The pnpm build policy explicitly denies the optional VSIX signing dependency's
+install script, matching the existing `ignore-scripts=true` policy and allowing
+clean installs without an interactive build-approval prompt. Local packaging
+does not sign or publish the extension.
+
 ## US-04 acceptance and manual verification
 
 As a user, automatically detect new PRs while the extension is active so an encounter

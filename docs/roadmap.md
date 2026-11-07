@@ -3,6 +3,7 @@
 This is a scope overview, not a delivery schedule. US-01 native GitHub authentication
 and US-02 authenticated API access plus US-03 manual authored-PR discovery with
 optional private access, plus US-04 automatic polling and pending encounter detection,
+and US-05 canonical PR identity with legacy-index migration,
 are implemented;
 all other story capabilities below remain planned. Track progress through public
 [issues](https://github.com/john-tavares/pr-pokemon-finder/issues) and pull requests.

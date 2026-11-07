@@ -2,9 +2,9 @@
 
 Turn your GitHub pull requests into Pokémon encounters inside Visual Studio Code.
 
-**Status: pre-release / PR monitoring prototype.** US-01 through US-04 are implemented:
+**Status: pre-release / PR monitoring prototype.** US-01 through US-05 are implemented:
 native sign-in, API access, cross-repository discovery, and automatic polling with
-a pending-encounter queue. There is no Marketplace release yet. Pokémon generation,
+a pending-encounter queue and canonical PR identities. There is no Marketplace release yet. Pokémon generation,
 capture processing, and the Pokédex remain planned.
 
 ## Try GitHub authentication
