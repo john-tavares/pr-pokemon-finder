@@ -228,6 +228,54 @@ or delayed indexed results. The UI warns about detected partial batches; it does
 not claim a complete permanent history. Search `state` is open/closed; an absent
 `mergedAt` is unknown. Do not infer capture/escape transitions from it.
 
+## US-04 acceptance and manual verification
+
+As a user, automatically detect new PRs while the extension is active so an encounter
+can be initiated without manually refreshing. Acceptance criteria:
+
+1. Poll while the extension is active and connected, with a suggested 60-second interval.
+2. Compare remote discoveries against a local reference and queue previously unknown new PRs.
+3. Work independently of the current workspace.
+4. Preserve known state and pending records when GitHub temporarily fails.
+
+Monitoring is enabled by default after native session restoration. Application
+settings are `prPokemonFinder.polling.enabled` and
+`prPokemonFinder.polling.intervalSeconds` (60–3600). The interval is measured from
+completion, so slow requests do not overlap. Rate limits can delay the next check.
+**Check for New Pull Requests Now** shares any in-flight cycle. **Show Monitoring
+Status** and **Show Pending Encounters** expose the current state.
+
+The first successful query establishes a baseline per account/access mode. Historical
+PRs are recorded without retroactive encounters; PRs created from that query's start
+onward enter the pending queue when first discovered. The queue also records PRs
+closed between checks, without processing captures yet. The minimal versioned index
+is account-scoped global state, distinct from future full encounter storage. API
+failures do not clear it; unsupported schemas/storage errors stop commits and show
+`storage-error` rather than resetting progress.
+
+Unit tests use fake timers and storage to verify scheduling, single-flight behavior,
+automatic queueing, historical baselines, partial data, restart recovery, scope/account
+isolation, rate limits, pause/disposal, and storage failure. No sleeps or live GitHub
+credentials are needed. The smoke test checks that signed-out startup remains paused.
+
+Manual verification with one active development-host window:
+
+1. Sign in and verify the first check completes without requesting another login.
+   Existing historical PRs should be known without filling the pending queue.
+2. Create a test PR. Wait for a cycle or run **Check for New Pull Requests Now**.
+   Verify the pending queue contains its repository and number only once.
+3. Repeat the check and reload the host. Verify known/pending records persist.
+4. Temporarily disconnect the network and verify an error status, retained records,
+   and recovery after reconnecting. Do not intentionally trigger live rate limits.
+5. Sign out, disable polling, or close the host; verify no further cycles run.
+   Sign back in/enable polling and verify automatic resumption.
+6. Change accounts or access modes during a request and verify stale results are
+   discarded. Public-only mode must hide private-mode pending references.
+
+Indexing lag and the existing search cap still apply. No Pokémon graphics, species,
+capture transitions, or per-new-encounter notifications are added in this story.
+Cross-window coordination and full encounter persistence remain follow-up work.
+
 ## Troubleshooting
 
 - **Frozen lockfile failure:** ensure your branch has matching manifest and lockfile

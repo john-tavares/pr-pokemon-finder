@@ -12,9 +12,12 @@ import { VSCodeSessionProvider } from './auth/vscode-session-provider';
 import { GitHubClient } from './github/client';
 import { registerGitHubCommands } from './github/commands';
 import { registerDiscoveryCommands } from './github/discovery-commands';
+import { registerPolling } from './polling/vscode-polling';
+import type { PollingStatus } from './polling/controller';
 
 export interface ExtensionApi {
   getAuthenticationState(): AuthenticationState;
+  getMonitoringStatus(): PollingStatus;
 }
 
 export async function activate(
@@ -25,6 +28,7 @@ export async function activate(
   const github = new GitHubClient(provider);
   registerGitHubCommands(context, github, authentication);
   registerDiscoveryCommands(context, github, authentication, provider);
+  const polling = registerPolling(context, github, authentication);
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     10,
@@ -67,5 +71,8 @@ export async function activate(
 
   render(authentication.state);
   await authentication.restore();
-  return { getAuthenticationState: () => ({ ...authentication.state }) };
+  return {
+    getAuthenticationState: () => ({ ...authentication.state }),
+    getMonitoringStatus: () => polling.status,
+  };
 }

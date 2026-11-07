@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Poll authored PRs automatically while connected, using a default sixty-second delay (US-04).
+- Keep a minimal account-scoped known-PR index and pending encounter queue, preserving state through failures and restarts.
+- Add monitoring status, manual check, pending queue commands, and global polling settings.
+
 - Discover authored PRs across repositories with pagination, metadata, and explicit partial-result warnings (US-03).
 - Add opt-in native consent for private repositories, with public-only defaults and no per-repository setup.
 

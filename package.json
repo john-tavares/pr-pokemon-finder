@@ -28,6 +28,20 @@
     "configuration": {
       "title": "PR Pokémon Finder",
       "properties": {
+        "prPokemonFinder.polling.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Automatically check authored PRs while the extension is active and signed in."
+        },
+        "prPokemonFinder.polling.intervalSeconds": {
+          "type": "integer",
+          "default": 60,
+          "minimum": 60,
+          "maximum": 3600,
+          "scope": "application",
+          "description": "Delay after a completed check before the next check. Rate limits can extend this delay."
+        },
         "prPokemonFinder.includePrivateRepositories": {
           "type": "boolean",
           "default": false,
@@ -37,6 +51,21 @@
       }
     },
     "commands": [
+      {
+        "command": "prPokemonFinder.showMonitoringStatus",
+        "title": "Show Monitoring Status",
+        "category": "PR Pokémon Finder"
+      },
+      {
+        "command": "prPokemonFinder.pollNow",
+        "title": "Check for New Pull Requests Now",
+        "category": "PR Pokémon Finder"
+      },
+      {
+        "command": "prPokemonFinder.showPendingEncounters",
+        "title": "Show Pending Encounters",
+        "category": "PR Pokémon Finder"
+      },
       {
         "command": "prPokemonFinder.discoverPullRequests",
         "title": "Discover My Pull Requests",
