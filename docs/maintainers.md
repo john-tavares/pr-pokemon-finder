@@ -39,8 +39,9 @@ Dependabot configuration starts operating after it reaches the default branch.
 
 ## Automation
 
-- `ci.yml`: checks formatting, Markdown, and tooling tests on pushes to `master`,
-  PRs targeting `master`, and manual dispatch.
+- `ci.yml`: checks formatting, Markdown, tooling tests, strict TypeScript compilation,
+  authentication unit tests, the minimum-version Extension Host smoke test, and VSIX
+  packaging on pushes to `master`, PRs targeting `master`, and manual dispatch.
 - `pr-title.yml`: checks Conventional Commit titles on PR creation, edits, updates,
   reopening, and readiness for review. The title is read from the event payload,
   not interpolated into shell commands.
@@ -48,9 +49,8 @@ Dependabot configuration starts operating after it reaches the default branch.
   of open PRs. Treat bot updates as ordinary reviewed changes.
 
 Actions are pinned to full commit SHAs and jobs use read-only repository permissions,
-timeouts, cancellation of superseded runs, and no project secrets. CI covers the
-current foundation only. Add application build, lint, tests, and packaging checks
-as the extension scaffold introduces those commands.
+timeouts, cancellation of superseded runs, and no project secrets. Interactive
+GitHub OAuth remains a manual check with a test account; CI never signs in.
 
 ## Releases
 
