@@ -122,7 +122,7 @@
     "check:pr-title": "node scripts/check-pr-title.mjs"
   },
   "devDependencies": {
-    "@types/node": "20.19.0",
+    "@types/node": "26.6.6",
     "@types/vscode": "1.95.0",
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "4.1.0",
