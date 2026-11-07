@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible problem. Report vulnerabilities privately.
+title: '[Bug]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. Never include credentials or private GitHub data.
+        For vulnerabilities, follow SECURITY.md instead of this public form.
+        The extension is not published yet; identify the tested commit or tooling command.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node/pnpm versions, commit or extension version, and VS Code version if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide minimal steps and sanitized sample data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized logs or screenshots if useful.
+    validations:
+      required: true

@@ -1,0 +1,27 @@
+{
+  "name": "pr-pokemon-finder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Community and development tooling for the planned PR Pokémon Finder VS Code extension.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/john-tavares/pr-pokemon-finder.git"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "check": "pnpm format:check && pnpm lint:md && pnpm test:tooling",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:md": "markdownlint-cli2",
+    "test:tooling": "node --test scripts/check-pr-title.test.mjs",
+    "check:pr-title": "node scripts/check-pr-title.mjs"
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "0.24.0",
+    "prettier": "3.9.10"
+  }
+}

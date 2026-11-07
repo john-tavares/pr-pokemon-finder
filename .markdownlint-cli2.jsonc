@@ -1,0 +1,15 @@
+{
+  "globs": ["**/*.md"],
+  "ignores": [
+    "node_modules/**",
+    "dist/**",
+    "out/**",
+    "coverage/**",
+    ".vscode-test/**",
+  ],
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD060": false,
+  },
+}
