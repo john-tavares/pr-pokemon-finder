@@ -11,6 +11,7 @@ import {
 import { VSCodeSessionProvider } from './auth/vscode-session-provider';
 import { GitHubClient } from './github/client';
 import { registerGitHubCommands } from './github/commands';
+import { registerDiscoveryCommands } from './github/discovery-commands';
 
 export interface ExtensionApi {
   getAuthenticationState(): AuthenticationState;
@@ -23,6 +24,7 @@ export async function activate(
   const authentication = new AuthenticationController(provider);
   const github = new GitHubClient(provider);
   registerGitHubCommands(context, github, authentication);
+  registerDiscoveryCommands(context, github, authentication, provider);
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     10,

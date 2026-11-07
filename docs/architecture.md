@@ -1,7 +1,7 @@
 # Architecture
 
 US-01 implements native GitHub authentication; US-02 adds authenticated HTTPS
-API access for account verification and lookup of a known public PR. Other product components below
+API access; US-03 adds cross-repository discovery and optional private consent. Other product components below
 remain planned. Capture design changes in a public issue or PR and update this
 document with them.
 
@@ -9,7 +9,7 @@ document with them.
 
 `src/extension.ts` owns commands, status bar presentation, activation, and disposal.
 `src/auth/vscode-session-provider.ts` is the native API boundary: provider `github`,
-scope `read:user`, silent restoration, and explicit interactive sign-in. It strips
+scope `read:user` by default (plus `repo` after private-access opt-in), silent restoration, and explicit interactive sign-in. It strips
 tokens before returning account information. The pure authentication controller
 handles state, single-flight login, session changes, stale replies, and disposal.
 Status formatting lives separately and has no VS Code runtime dependency.
@@ -50,10 +50,44 @@ a hidden private resource. No raw response bodies or provider errors reach users
 Rate limits use Retry-After/reset metadata and a minimum sixty-second fallback.
 The client keeps only an in-memory cooldown timestamp and blocks new requests until
 it expires. It does not automatically retry. Network/server failures preserve
-authentication state. Automatic discovery, pagination, polling, and private-repository
-scope escalation are not implemented here.
+authentication state. Polling is not implemented; US-03 adds the paginated manual
+discovery described below.
 
 Reference: [GitHub REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api).
+
+## Implemented cross-repository discovery
+
+`src/github/discovery.ts` searches `is:pr author:<authenticated-login>` through
+the fixed-origin REST search endpoint. Public-only mode adds `is:public`; private
+mode relies on the repositories accessible to the native `repo` session. The
+definition of "my PRs" is authored PRs, not assignments or review requests.
+The service never inspects workspace folders, Git remotes, or a repository allowlist.
+
+Search pages run sequentially, up to 100 items per page and ten pages. A batch
+records host, API ID, owner, repository, number, URL, title, open/closed state, and
+created/updated/closed timestamps. Optional merge dates are preserved when present;
+an omitted merge date is unknown, not proof of an unmerged closure. Stable merge
+transition handling belongs to US-07. No per-PR hydration is needed during discovery.
+
+Results carry the reported total and a completeness flag. Incomplete responses,
+changing totals, duplicate/short pages, or the 1,000-item ceiling prevent claiming
+completeness. Invalid records and HTTP failures reject the batch. Consumers must
+never treat missing search results as deleted PRs. Even a complete batch is limited
+by GitHub search indexing, permissions, and search-scope limits.
+
+`src/github/discovery-commands.ts` owns progress, cancellation, private consent,
+and a native quick picker. User identity is checked before and after pagination;
+auth/scope changes cancel or discard stale results and close an active picker.
+Only the opt-in boolean is stored by VS Code Settings (application scope). PR
+records stay in memory; durable encounter persistence belongs to US-13.
+
+Private consent happens only after a user action. `repo` is a broad OAuth scope,
+not a read-only permission, but the client only sends GET requests. Turning off
+private discovery changes the requested session scopes and search filter without
+revoking GitHub permissions. Revoke those through native account management.
+
+References: [GitHub search API](https://docs.github.com/en/rest/search/search),
+[OAuth scopes](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps).
 
 ## Boundaries
 

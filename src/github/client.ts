@@ -12,6 +12,8 @@ export type GitHubErrorCode =
   | 'network'
   | 'invalid-response'
   | 'invalid-pull-request'
+  | 'discovery-canceled'
+  | 'account-changed'
   | 'service-unavailable';
 
 /** Contains only sanitized metadata; never attach the HTTP response or its body. */
@@ -145,6 +147,25 @@ export class GitHubClient {
       state: data.state,
       merged: data.merged,
     };
+  }
+
+  async getPullRequestSearchPage(
+    login: string,
+    page: number,
+    includePrivate: boolean,
+  ): Promise<unknown> {
+    if (
+      !/^[a-z0-9][a-z0-9-]{0,38}$/i.test(login) ||
+      !Number.isInteger(page) ||
+      page < 1 ||
+      page > 10
+    ) {
+      throw new GitHubApiError('invalid-response');
+    }
+    const query = `is:pr author:${login}${includePrivate ? '' : ' is:public'}`;
+    return this.get(
+      `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc&per_page=100&page=${page}`,
+    );
   }
 
   private async get(path: string): Promise<unknown> {

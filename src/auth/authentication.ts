@@ -108,6 +108,13 @@ export class AuthenticationController implements Disposable {
     this.apply({ status: 'disconnected' }, ++this.revision);
   }
 
+  /** Scope changes invalidate old lookups without forcing a second consent flow. */
+  resetSession(): void {
+    if (this.disposed) return;
+    this.needsReauthentication = false;
+    this.apply({ status: 'disconnected' }, ++this.revision);
+  }
+
   private applySession(
     session: AccountSession | undefined,
     revision: number,

@@ -39,6 +39,18 @@ class FakeProvider implements SessionProvider {
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test('scope changes reset rejected credentials and restore an already authorized session silently', async () => {
+  const provider = new FakeProvider();
+  provider.lookup = async () => session;
+  const controller = new AuthenticationController(provider);
+  controller.invalidateSession();
+  controller.resetSession();
+  await controller.restore();
+  assert.equal(controller.state.status, 'connected');
+  assert.deepEqual(provider.requests, [{ silent: true }]);
+  controller.dispose();
+});
+
 test('an API-rejected session requires explicit fresh authentication and cannot be silently restored', async () => {
   const provider = new FakeProvider();
   provider.lookup = async () => session;

@@ -6,11 +6,9 @@ import { GitHubApiError, GitHubClient, parsePullRequestUrl } from './client';
 export const CHECK_CONNECTION_COMMAND = 'prPokemonFinder.checkGitHubConnection';
 export const INSPECT_PR_COMMAND = 'prPokemonFinder.inspectPullRequest';
 
-export function registerGitHubCommands(
-  context: vscode.ExtensionContext,
-  client: GitHubClient,
+export function createGitHubErrorHandler(
   authentication: AuthenticationController,
-): void {
+) {
   const handleError = async (error: unknown) => {
     const code =
       error instanceof GitHubApiError ? error.code : 'service-unavailable';
@@ -37,7 +35,10 @@ export function registerGitHubCommands(
       forbidden:
         'GitHub denied access. Check your account permissions and organization policies.',
       'not-found':
-        'The pull request was not found or is not accessible to this session. Private repository access is not enabled in this version.',
+        'The pull request was not found or is not accessible. Check private repository access, account permissions, and organization policies.',
+      'discovery-canceled': 'Pull request discovery was canceled.',
+      'account-changed':
+        'The GitHub account or access settings changed. Run discovery again.',
       'rate-limited': `GitHub API limit reached. Try again in ${error instanceof GitHubApiError ? (error.retryAfterSeconds ?? 60) : 60} seconds.`,
       network:
         'Could not reach GitHub within the request timeout. Check your connection and retry. For a moved repository, use its current URL.',
@@ -49,6 +50,15 @@ export function registerGitHubCommands(
     };
     await vscode.window.showWarningMessage(messages[code]);
   };
+  return handleError;
+}
+
+export function registerGitHubCommands(
+  context: vscode.ExtensionContext,
+  client: GitHubClient,
+  authentication: AuthenticationController,
+): void {
+  const handleError = createGitHubErrorHandler(authentication);
 
   context.subscriptions.push(
     vscode.commands.registerCommand(CHECK_CONNECTION_COMMAND, async () => {
@@ -64,7 +74,8 @@ export function registerGitHubCommands(
     vscode.commands.registerCommand(INSPECT_PR_COMMAND, async () => {
       const input = await vscode.window.showInputBox({
         title: 'PR Pokémon Finder: Inspect Pull Request',
-        prompt: 'Enter the URL of a public GitHub.com pull request.',
+        prompt:
+          'Enter a GitHub.com pull request URL accessible to your current session.',
         placeHolder: 'https://github.com/owner/repository/pull/123',
         ignoreFocusOut: true,
         validateInput: (value) =>
