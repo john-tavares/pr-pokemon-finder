@@ -2,10 +2,10 @@
 
 Turn your GitHub pull requests into Pokémon encounters inside Visual Studio Code.
 
-**Status: pre-release / PR discovery prototype.** US-01 through US-03 are implemented:
-native sign-in, API access, known PR lookup, and manual discovery of authored PRs
-across repositories. There is no Marketplace release yet. Polling, Pokémon
-encounters, and the Pokédex remain planned.
+**Status: pre-release / PR monitoring prototype.** US-01 through US-04 are implemented:
+native sign-in, API access, cross-repository discovery, and automatic polling with
+a pending-encounter queue. There is no Marketplace release yet. Pokémon generation,
+capture processing, and the Pokédex remain planned.
 
 ## Try GitHub authentication
 
@@ -36,7 +36,8 @@ by the extension. If GitHub rejects it, the extension marks the session disconne
 and offers a new native login. Network failures and rate limits show actionable
 messages; rate-limited requests pause until the cooldown ends.
 
-No API queries or login prompts run automatically at startup.
+Polling starts automatically after an authorized session is restored. Login and
+private-scope consent are never prompted automatically.
 
 ## Discover your pull requests
 
@@ -62,6 +63,31 @@ and organization/SSO policies still apply.
 To return to public-only discovery, disable **PR Pokémon Finder: Include Private
 Repositories** in Settings. This does not revoke existing OAuth permissions;
 manage those through VS Code Accounts/GitHub. Tokens remain managed by VS Code.
+
+## Automatic monitoring
+
+Once connected, the extension checks authored PRs immediately and then waits
+60 seconds after each completed check before running again. It works in an empty
+window and across repositories. Use **Show Monitoring Status**, **Check for New
+Pull Requests Now**, and **Show Pending Encounters** from the Command Palette.
+
+The first successful query in each access mode establishes its starting reference: historical
+PRs are recorded as known, and unseen PRs created since that query began enter
+a pending-encounter queue. This includes PRs closed between checks. The small
+account-scoped index and queue survive restarts in VS Code global storage. API
+errors and incomplete search results never erase known records. Partial results
+remain visibly flagged; search indexing can delay detection or miss capped results.
+
+Polling pauses on logout, rejected credentials, disabling the feature, or extension
+shutdown. It never starts an interactive login in the background. Rate-limit
+responses extend the next delay. Change **Polling: Enabled** or **Polling: Interval
+Seconds** in PR Pokémon Finder Settings (60–3600 seconds).
+
+The queue prepares new PRs for later Pokémon generation; it does not generate or
+capture Pokémon yet. Saved private-mode queue entries are hidden in public-only
+mode, but disabling private access does not delete them. The current index is
+intended for one active monitoring window; cross-window coordination and full
+encounter persistence remain follow-up work.
 
 ## Planned experience
 
@@ -92,7 +118,7 @@ Development requires Node.js 24; the extension supports desktop VS Code 1.95.0 o
 newer. Run `pnpm build` to compile TypeScript, `pnpm test:extension` for an isolated
 Extension Host smoke test, or `pnpm package` to produce
 `dist/pr-pokemon-finder.vsix`. Install that file using **Extensions: Install from
-VSIX...**. It contains authentication, API lookup, and manual PR discovery.
+VSIX...**. It contains authentication, API lookup, discovery, and polling.
 
 ## Contribute
 

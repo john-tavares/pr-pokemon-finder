@@ -27,7 +27,10 @@ and discussion are welcome; maintainers can help translate them.
 4. Keep the change focused. Update affected documentation and add meaningful tests
    for behavior changes. Explain why tests do not apply to documentation-only work.
 5. Run `pnpm check` and inspect `git diff --check` before pushing.
-6. Open a PR against `master` and complete the template.
+6. Open a PR against `master` and complete the template. For stacked work that
+   depends on an unmerged feature, target its `feat/` branch, link the parent PR,
+   and retarget/rebase onto `master` after the dependency is merged. Do not merge
+   a child PR into its parent as a shortcut around independent review.
 
 Do not commit generated build output, dependency directories, credentials, personal
 paths, or user data. Commit `pnpm-lock.yaml` when dependencies change. Use pnpm as

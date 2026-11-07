@@ -1,7 +1,8 @@
 # Architecture
 
 US-01 implements native GitHub authentication; US-02 adds authenticated HTTPS
-API access; US-03 adds cross-repository discovery and optional private consent. Other product components below
+API access; US-03 adds cross-repository discovery and optional private consent;
+US-04 adds automatic polling and a minimal pending-encounter index. Other components below
 remain planned. Capture design changes in a public issue or PR and update this
 document with them.
 
@@ -50,8 +51,7 @@ a hidden private resource. No raw response bodies or provider errors reach users
 Rate limits use Retry-After/reset metadata and a minimum sixty-second fallback.
 The client keeps only an in-memory cooldown timestamp and blocks new requests until
 it expires. It does not automatically retry. Network/server failures preserve
-authentication state. Polling is not implemented; US-03 adds the paginated manual
-discovery described below.
+authentication state. US-03 supplies discovery and US-04 schedules automatic checks.
 
 Reference: [GitHub REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api).
 
@@ -79,7 +79,8 @@ by GitHub search indexing, permissions, and search-scope limits.
 and a native quick picker. User identity is checked before and after pagination;
 auth/scope changes cancel or discard stale results and close an active picker.
 Only the opt-in boolean is stored by VS Code Settings (application scope). PR
-records stay in memory; durable encounter persistence belongs to US-13.
+manual discovery records stay in memory. US-04 persists a smaller comparison index
+and pending references; full encounter persistence still belongs to US-13.
 
 Private consent happens only after a user action. `repo` is a broad OAuth scope,
 not a read-only permission, but the client only sends GET requests. Turning off
@@ -88,6 +89,39 @@ revoking GitHub permissions. Revoke those through native account management.
 
 References: [GitHub search API](https://docs.github.com/en/rest/search/search),
 [OAuth scopes](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps).
+
+## Implemented polling
+
+`src/polling/controller.ts` schedules immediate discovery when connected and a new
+check sixty seconds after the previous one finishes. A single in-flight request
+is shared with manual checks. Generation checks discard stale replies after
+configuration/auth changes or disposal; an old request completes before a new
+configuration starts another one. Logout or invalid credentials pause monitoring.
+Background errors never open authentication dialogs. Rate limits extend the delay.
+
+`src/polling/index.ts` reconciles validated results with an additive account-scoped
+index. Each public/private access mode gets a baseline at its first successful
+query's start time. Unknown PRs older than that cutoff become known without
+retroactive encounters. Unknown PRs created since the cutoff queue pending
+encounters automatically, including PRs already closed when first observed.
+Known IDs are shared across access modes, preventing requeueing when scopes change.
+Missing results are never interpreted as deletion. Partial results can add known
+records while retaining all previous records and showing a partial status.
+
+`src/polling/vscode-polling.ts` adapts VS Code settings, authentication state,
+timers, status/queue commands, and `globalState`. Keys use the GitHub account ID;
+schema version 1 stores API IDs, separate scope baselines, and minimal pending
+references/detection timestamps. Tokens, raw API bodies, and workspace paths are
+not stored. No keys are enrolled in Settings Sync. Public-only mode hides pending
+records discovered in private mode; this conservatively includes public PRs first
+seen with private access enabled.
+
+Storage failures or unknown/corrupt schemas are surfaced without resetting data.
+State is persisted before publishing a successful check. The queue is preparation
+for US-09; Pokémon generation, merge/escape transitions, collection UI, and full
+encounter storage are not implemented here. The first implementation targets one
+active polling window; it does not provide an inter-process storage lock. Cross-window
+coordination belongs with stronger synchronization/idempotency work.
 
 ## Boundaries
 

@@ -41,7 +41,8 @@ Dependabot configuration starts operating after it reaches the default branch.
 
 - `ci.yml`: checks formatting, Markdown, tooling tests, strict TypeScript compilation,
   authentication unit tests, the minimum-version Extension Host smoke test, and VSIX
-  packaging on pushes to `master`, PRs targeting `master`, and manual dispatch.
+  packaging on pushes to `master`, PRs targeting `master` or stacked `feat/**`
+  branches, and manual dispatch.
 - `pr-title.yml`: checks Conventional Commit titles on PR creation, edits, updates,
   reopening, and readiness for review. The title is read from the event payload,
   not interpolated into shell commands.

@@ -22,6 +22,10 @@ async function verifyAuthentication(): Promise<void> {
   assert.ok(commands.includes(INSPECT_PR_COMMAND));
   assert.ok(commands.includes('prPokemonFinder.discoverPullRequests'));
   assert.ok(commands.includes('prPokemonFinder.enablePrivateRepositories'));
+  assert.ok(commands.includes('prPokemonFinder.showMonitoringStatus'));
+  assert.ok(commands.includes('prPokemonFinder.pollNow'));
+  assert.ok(commands.includes('prPokemonFinder.showPendingEncounters'));
+  assert.equal(api.getMonitoringStatus().phase, 'paused');
   assert.equal(
     vscode.workspace
       .getConfiguration('prPokemonFinder')
