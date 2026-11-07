@@ -39,6 +39,41 @@ class FakeProvider implements SessionProvider {
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test('an API-rejected session requires explicit fresh authentication and cannot be silently restored', async () => {
+  const provider = new FakeProvider();
+  provider.lookup = async () => session;
+  const controller = new AuthenticationController(provider);
+  await controller.restore();
+  controller.invalidateSession();
+  assert.equal(controller.state.status, 'disconnected');
+  await controller.restore();
+  assert.equal(controller.state.status, 'disconnected');
+  assert.equal(provider.requests.length, 1);
+  await controller.signIn();
+  assert.deepEqual(provider.requests[1], { forceNewSession: true });
+  assert.equal(controller.state.status, 'connected');
+  await controller.restore();
+  assert.deepEqual(provider.requests[2], { silent: true });
+  controller.dispose();
+});
+
+test('canceled reauthentication preserves the requirement for a new session on retry', async () => {
+  const provider = new FakeProvider();
+  const controller = new AuthenticationController(provider);
+  controller.invalidateSession();
+  provider.lookup = async () => {
+    throw new Error('User canceled.');
+  };
+  await controller.signIn();
+  provider.lookup = async () => session;
+  await controller.signIn();
+  assert.deepEqual(provider.requests, [
+    { forceNewSession: true },
+    { forceNewSession: true },
+  ]);
+  controller.dispose();
+});
+
 test('restores a session silently and reuses it in a new controller', async () => {
   const provider = new FakeProvider();
   provider.lookup = async () => session;

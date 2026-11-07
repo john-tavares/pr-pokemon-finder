@@ -2,12 +2,13 @@ export interface Disposable {
   dispose(): void;
 }
 
-/** Deliberately excludes the token: US-01 only needs public account information. */
+/** UI authentication state never needs the raw access token. */
 export interface AccountSession {
   readonly account: { readonly id: string; readonly label: string };
 }
 
-export type SessionRequest = { silent: true } | { createIfNone: true };
+export type SessionRequest =
+  { silent: true } | { createIfNone: true } | { forceNewSession: true };
 
 export interface SessionProvider {
   getSession(options: SessionRequest): Promise<AccountSession | undefined>;
@@ -28,6 +29,7 @@ export class AuthenticationController implements Disposable {
   private disposed = false;
   private signInRequest: Promise<void> | undefined;
   private refreshAfterSignIn = false;
+  private needsReauthentication = false;
 
   constructor(private readonly provider: SessionProvider) {
     this.subscription = provider.onDidChangeSessions((providerId) => {
@@ -55,7 +57,7 @@ export class AuthenticationController implements Disposable {
 
   /** Silent lookup reuses VS Code's session without prompting or persisting secrets. */
   async restore(): Promise<void> {
-    if (this.disposed) return;
+    if (this.disposed || this.needsReauthentication) return;
     const revision = ++this.revision;
     try {
       const session = await this.provider.getSession({ silent: true });
@@ -75,7 +77,14 @@ export class AuthenticationController implements Disposable {
     // Defer provider invocation until the single-flight guard has been assigned.
     this.signInRequest = Promise.resolve().then(async () => {
       try {
-        const session = await this.provider.getSession({ createIfNone: true });
+        const session = await this.provider.getSession(
+          this.needsReauthentication
+            ? { forceNewSession: true }
+            : { createIfNone: true },
+        );
+        if (session && revision === this.revision && !this.disposed) {
+          this.needsReauthentication = false;
+        }
         this.applySession(session, revision);
       } catch {
         // Cancellation, consent denial and provider failures are safe to retry.
@@ -90,6 +99,13 @@ export class AuthenticationController implements Disposable {
       }
     });
     return this.signInRequest;
+  }
+
+  /** A rejected API credential must not be silently reused on the next login. */
+  invalidateSession(): void {
+    if (this.disposed) return;
+    this.needsReauthentication = true;
+    this.apply({ status: 'disconnected' }, ++this.revision);
   }
 
   private applySession(

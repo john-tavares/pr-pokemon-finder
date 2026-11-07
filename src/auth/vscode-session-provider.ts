@@ -9,6 +9,16 @@ export const GITHUB_PROVIDER = 'github';
 export const GITHUB_SCOPES: readonly string[] = ['read:user'];
 
 export class VSCodeSessionProvider implements SessionProvider {
+  /** Request-scoped access only; the client must never persist this value. */
+  async getAccessToken(): Promise<string | undefined> {
+    const session = await vscode.authentication.getSession(
+      GITHUB_PROVIDER,
+      GITHUB_SCOPES,
+      { silent: true },
+    );
+    return session?.accessToken;
+  }
+
   async getSession(
     options: SessionRequest,
   ): Promise<AccountSession | undefined> {

@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import * as vscode from 'vscode';
 import type { ExtensionApi } from '../../src/extension';
 import { SIGN_IN_COMMAND, STATUS_COMMAND } from '../../src/auth/status';
+import {
+  CHECK_CONNECTION_COMMAND,
+  INSPECT_PR_COMMAND,
+} from '../../src/github/commands';
 
 /** A real, isolated Extension Host smoke test; never launches interactive OAuth. */
 async function verifyAuthentication(): Promise<void> {
@@ -14,6 +18,8 @@ async function verifyAuthentication(): Promise<void> {
   const commands = await vscode.commands.getCommands(true);
   assert.ok(commands.includes(SIGN_IN_COMMAND));
   assert.ok(commands.includes(STATUS_COMMAND));
+  assert.ok(commands.includes(CHECK_CONNECTION_COMMAND));
+  assert.ok(commands.includes(INSPECT_PR_COMMAND));
   assert.deepEqual(api.getAuthenticationState(), { status: 'disconnected' });
   console.log(
     'Extension Host smoke test passed: commands registered, signed out, no OAuth prompt.',

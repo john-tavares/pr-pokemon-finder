@@ -144,6 +144,43 @@ No raw session/token is exposed in status, logs, extension exports, or local
 project storage. OAuth is owned by VS Code. GitHub Enterprise and private repository
 access are outside US-01. See [architecture](architecture.md) before adding those.
 
+## US-02 acceptance and manual verification
+
+As a system, use the VS Code session to query GitHub's API directly without hosted
+infrastructure. Acceptance criteria:
+
+1. Obtain the access token from the current native session for every request.
+2. Send authenticated HTTPS requests directly to GitHub.
+3. Handle invalid/expired tokens with disconnected status and explicit native
+   reauthentication, rather than silently reusing the rejected credential.
+4. Never persist tokens in a project-managed file, database, state, or log.
+
+The implementation exposes a connection check (`GET /user`) and a known public
+PR lookup (`GET /repos/{owner}/{repo}/pulls/{number}`). It intentionally retains
+`read:user`; support for private-repository permissions belongs to discovery work.
+
+Unit tests inject token providers and HTTP responses. They cover fresh token lookup,
+headers, allowed origins/URLs, missing/expired credentials, permission errors,
+invalid responses, timeouts/network failures, rate-limit cooldowns, and explicit
+reauthentication. They make no live GitHub requests. The Extension Host smoke test
+checks registration of both API commands without starting OAuth or network calls.
+
+Manual verification with a test account:
+
+1. In the development host, run **Check GitHub API Connection** while signed out;
+   verify it offers login and does not perform an anonymous request.
+2. Complete native sign-in, rerun the connection check, and verify the account name.
+3. Run **Inspect Pull Request** with a public PR URL. Check title and status against
+   GitHub. Repeat with a nonexistent PR and verify an actionable not-found message.
+4. Enter an HTTP/non-GitHub URL; verify validation prevents submission.
+5. Disable network access and retry; verify a safe error and unchanged auth status.
+6. Revoke the token from the test account and run the connection check. If GitHub
+   returns 401 before VS Code removes the session, verify disconnected status and
+   that retry explicitly asks VS Code for a new session. Cancellation remains retryable.
+
+Do not deliberately exhaust the live API rate limit. Cooldown behavior is tested
+with fake headers and an injected clock.
+
 ## Troubleshooting
 
 - **Frozen lockfile failure:** ensure your branch has matching manifest and lockfile

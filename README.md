@@ -2,9 +2,9 @@
 
 Turn your GitHub pull requests into Pokémon encounters inside Visual Studio Code.
 
-**Status: pre-release / authentication prototype.** US-01 is implemented: sign in
-with GitHub through VS Code, restore an authorized session, and view connection
-status. There is no Marketplace release yet. PR discovery, encounters, and the
+**Status: pre-release / GitHub API prototype.** US-01 and US-02 are implemented:
+native sign-in, session restoration, connection status, API connection checks,
+and lookup of a known public PR. There is no Marketplace release yet. PR discovery, encounters, and the
 Pokédex below are planned features, not working functionality.
 
 ## Try GitHub authentication
@@ -20,6 +20,24 @@ existing authorized session. Use the VS Code **Accounts** menu to sign out or
 revoke this extension's access; the status indicator updates accordingly.
 Use **PR Pokémon Finder: Show Authentication Status** to inspect the current state.
 Canceled sign-in can be retried without reloading the extension.
+
+## Try GitHub API access
+
+After signing in, run **PR Pokémon Finder: Check GitHub API Connection** to verify
+the session against GitHub. Run **PR Pokémon Finder: Inspect Pull Request** and
+paste a public PR URL, for example
+`https://github.com/john-tavares/pr-pokemon-finder/pull/1`, to see its title and
+open/closed/merged status. Requests are authenticated HTTPS GETs directly to
+GitHub; they do not modify PRs or start monitoring.
+
+The token is obtained silently from VS Code for each request and never persisted
+by the extension. If GitHub rejects it, the extension marks the session disconnected
+and offers a new native login. Network failures and rate limits show actionable
+messages; rate-limited requests pause until the cooldown ends.
+
+This version keeps the `read:user` scope and supports public PRs only. Private
+repository consent and automatic discovery belong to later stories. No API calls
+or login prompts run automatically at startup.
 
 ## Planned experience
 
@@ -50,7 +68,7 @@ Development requires Node.js 24; the extension supports desktop VS Code 1.95.0 o
 newer. Run `pnpm build` to compile TypeScript, `pnpm test:extension` for an isolated
 Extension Host smoke test, or `pnpm package` to produce
 `dist/pr-pokemon-finder.vsix`. Install that file using **Extensions: Install from
-VSIX...**. It contains the authentication prototype only.
+VSIX...**. It contains the authentication and explicit API lookup prototype.
 
 ## Contribute
 

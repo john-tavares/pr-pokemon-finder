@@ -1,7 +1,8 @@
 # Product roadmap
 
 This is a scope overview, not a delivery schedule. US-01 native GitHub authentication
-is implemented; all other story capabilities below remain planned. Track progress through public
+and US-02 authenticated API access for explicit public PR lookup are implemented;
+all other story capabilities below remain planned. Track progress through public
 [issues](https://github.com/john-tavares/pr-pokemon-finder/issues) and pull requests.
 
 | Area               | Planned capabilities                                                 | Existing story references         |
