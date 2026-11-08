@@ -7,6 +7,7 @@ import { FilePresentationGate } from './gate';
 import { SpriteLoader } from './sprites';
 import { pokemonName } from './catalog';
 import { renderSceneHtml } from './webview';
+import { PresentationQueue } from './queue';
 
 export function registerCapturePresentation(
   context: vscode.ExtensionContext,
@@ -123,7 +124,7 @@ export function registerCapturePresentation(
     });
   };
 
-  const pump = async (manual = false) => {
+  const queue = new PresentationQueue(async (manual) => {
     if (
       disposed ||
       running ||
@@ -159,9 +160,11 @@ export function registerCapturePresentation(
     } finally {
       running = false;
     }
-  };
+  });
+  const pump = (manual = false) => queue.request(manual);
 
   context.subscriptions.push(
+    queue,
     {
       dispose: () => {
         disposed = true;
