@@ -16,6 +16,9 @@ Today's implementation stack is documented per story, starting with
 [US 10: deterministic assignments](docs/us-10-deterministic-assignment.md).
 Screenshots below use sanitized demo data.
 
+Persistence guarantees and recovery are described in
+[US 13](docs/us-13-local-persistence.md).
+
 1. Install the generated VSIX or run this checkout with **F5**.
 2. Run **PR Pokémon Finder: Preview Capture Animation** to see a Pikachu demo
    immediately, without GitHub sign-in or changes to the collection.

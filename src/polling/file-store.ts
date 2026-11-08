@@ -11,6 +11,17 @@ export class FilePollingStore implements PollingStore {
     private readonly readLegacy: (accountId: number) => unknown,
   ) {}
 
+  /** A read never rewrites/migrates the durable ledger or acknowledges a scene. */
+  async readSnapshot(accountId: number): Promise<PollingIndex> {
+    let snapshot: PollingIndex | undefined;
+    await this.update(accountId, (value) => {
+      snapshot = structuredClone(decodeIndex(value));
+      return undefined;
+    });
+    if (!snapshot) throw new Error('Snapshot unavailable.');
+    return snapshot;
+  }
+
   async update(
     accountId: number,
     transform: (value: unknown) => PollingIndex | undefined,

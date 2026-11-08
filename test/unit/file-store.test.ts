@@ -13,6 +13,35 @@ async function fixture(t: TestContext) {
   return directory;
 }
 
+test('read snapshots survive restart without rewriting or acknowledging captures', async (t) => {
+  const directory = await fixture(t);
+  const store = new FilePollingStore(directory, () => undefined);
+  await store.update(123, decodeIndex);
+  const path = join(directory, 'account-123.json');
+  const before = await readFile(path, 'utf8');
+  const reopened = new FilePollingStore(directory, () => undefined);
+  const snapshot = await reopened.readSnapshot(123);
+  assert.equal(snapshot.version, 3);
+  (snapshot.known as string[]).push('local mutation');
+  assert.deepEqual((await reopened.readSnapshot(123)).known, []);
+  assert.equal(await readFile(path, 'utf8'), before);
+  assert.deepEqual(await readdir(directory), ['account-123.json']);
+  assert.deepEqual((await reopened.readSnapshot(456)).captures, []);
+  assert.equal(await readFile(path, 'utf8'), before);
+});
+
+test('legacy read migrations remain non-destructive and unsupported files fail closed', async (t) => {
+  const directory = await fixture(t);
+  const legacy = { version: 1, known: [42], pending: [], baselines: {} };
+  const store = new FilePollingStore(directory, () => legacy);
+  assert.deepEqual((await store.readSnapshot(123)).legacyKnownIds, [42]);
+  assert.deepEqual(await readdir(directory), []);
+  const path = join(directory, 'account-123.json');
+  await writeFile(path, '{"version":999}');
+  await assert.rejects(store.readSnapshot(123));
+  assert.equal(await readFile(path, 'utf8'), '{"version":999}');
+});
+
 test('atomic store migrates legacy only once and a second instance reads committed state', async (t) => {
   const directory = await fixture(t);
   const legacy = { version: 1, known: [1], pending: [], baselines: {} };
