@@ -34,7 +34,7 @@ export function registerPolling(
       authentication.state.status === 'connected';
     const includePrivate = privateRepositoriesEnabled();
     const intervalSeconds = config.get<number>('polling.intervalSeconds', 60);
-    const nextKey = `${authentication.state.status === 'connected' ? authentication.state.accountLabel : 'paused'}:${active}:${includePrivate}:${intervalSeconds}`;
+    const nextKey = `${authentication.accountId ?? 'paused'}:${active}:${includePrivate}:${intervalSeconds}`;
     if (nextKey === key) return;
     key = nextKey;
     picker?.cancel();

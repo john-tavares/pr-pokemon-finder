@@ -23,6 +23,7 @@ export type AuthenticationState =
 
 export class AuthenticationController implements Disposable {
   private current: AuthenticationState = { status: 'disconnected' };
+  private nativeId: string | undefined;
   private readonly listeners = new Set<(state: AuthenticationState) => void>();
   private readonly subscription: Disposable;
   private revision = 0;
@@ -44,6 +45,11 @@ export class AuthenticationController implements Disposable {
 
   get state(): AuthenticationState {
     return this.current;
+  }
+
+  /** Opaque native identity; never assume it equals GitHub's numeric REST ID. */
+  get accountId(): string | undefined {
+    return this.nativeId;
   }
 
   onDidChangeState(listener: (state: AuthenticationState) => void): Disposable {
@@ -119,6 +125,8 @@ export class AuthenticationController implements Disposable {
     session: AccountSession | undefined,
     revision: number,
   ): void {
+    if (this.disposed || revision !== this.revision) return;
+    this.nativeId = session?.account.id;
     this.apply(
       session
         ? { status: 'connected', accountLabel: session.account.label }
@@ -130,6 +138,7 @@ export class AuthenticationController implements Disposable {
   private apply(state: AuthenticationState, revision: number): void {
     if (this.disposed || revision !== this.revision) return;
     this.current = state;
+    if (state.status !== 'connected') this.nativeId = undefined;
     for (const listener of this.listeners) listener(state);
   }
 
@@ -139,5 +148,6 @@ export class AuthenticationController implements Disposable {
     this.subscription.dispose();
     this.listeners.clear();
     this.current = { status: 'disconnected' };
+    this.nativeId = undefined;
   }
 }

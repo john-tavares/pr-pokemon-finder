@@ -70,6 +70,11 @@
     },
     "commands": [
       {
+        "command": "prPokemonFinder.showCollectionStatus",
+        "title": "Show Local Collection Status",
+        "category": "PR Pokémon Finder"
+      },
+      {
         "command": "prPokemonFinder.previewCaptureAnimation",
         "title": "Preview Capture Animation",
         "category": "PR Pokémon Finder"
