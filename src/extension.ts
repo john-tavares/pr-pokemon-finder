@@ -15,10 +15,13 @@ import { registerDiscoveryCommands } from './github/discovery-commands';
 import { registerPolling } from './polling/vscode-polling';
 import type { PollingStatus } from './polling/controller';
 import { registerCapturePresentation } from './presentation/register';
+import { registerCollection } from './collection/register';
+import type { CollectionState } from './collection/controller';
 
 export interface ExtensionApi {
   getAuthenticationState(): AuthenticationState;
   getMonitoringStatus(): PollingStatus;
+  getCollectionState(): CollectionState;
 }
 
 export async function activate(
@@ -30,6 +33,7 @@ export async function activate(
   registerGitHubCommands(context, github, authentication);
   registerDiscoveryCommands(context, github, authentication, provider);
   const polling = registerPolling(context, github, authentication);
+  const collection = registerCollection(context, authentication, polling);
   registerCapturePresentation(context, polling);
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
@@ -76,5 +80,6 @@ export async function activate(
   return {
     getAuthenticationState: () => ({ ...authentication.state }),
     getMonitoringStatus: () => polling.status,
+    getCollectionState: () => collection.state,
   };
 }

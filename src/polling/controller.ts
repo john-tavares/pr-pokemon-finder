@@ -73,6 +73,11 @@ export class PollingController implements Disposable {
   get status(): PollingStatus {
     return { ...this.current };
   }
+
+  /** Available only after a successful, identity-validated sync. */
+  get activeAccountId(): number | undefined {
+    return this.accountId;
+  }
   get pendingEncounters(): readonly PendingEncounter[] {
     return this.pending.map((item) => ({ ...item }));
   }
