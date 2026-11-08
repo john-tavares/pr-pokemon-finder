@@ -19,7 +19,7 @@ remaining PRs as needed. Do not merge child PRs into feature parents.
 | US 18 | [#22](https://github.com/john-tavares/pr-pokemon-finder/pull/22) | Verified pre-release VSIX 0.0.2 and installation/update instructions                                   |
 | US 23 | [#23](https://github.com/john-tavares/pr-pokemon-finder/pull/23) | Multi-repository provenance/navigation, same PR numbers remain independent, no workspace configuration |
 | US 21 | [#24](https://github.com/john-tavares/pr-pokemon-finder/pull/24) | Pokédex with all saved rewards, source/date details, paging and offline states                         |
-| US 19 | Top of stack                                                     | Explicit CAPTURAR, retro sequence, completion-only Pokédex handoff, no lost rewards on close/skip      |
+| US 19 | [#25](https://github.com/john-tavares/pr-pokemon-finder/pull/25) | Explicit CAPTURAR, retro sequence, completion-only Pokédex handoff, no lost rewards on close/skip      |
 
 ## Validate and try the complete build
 
