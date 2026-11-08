@@ -22,6 +22,9 @@ Persistence guarantees and recovery are described in
 [US 14](docs/us-14-global-collection.md) provides the account-global, offline
 collection read model. Run **Show Local Collection Status** to inspect it.
 
+[US 15](docs/us-15-direct-github.md) documents direct GitHub access and the
+**Show Network and Privacy Policy** diagnostic command.
+
 1. Install the generated VSIX or run this checkout with **F5**.
 2. Run **PR Pokémon Finder: Preview Capture Animation** to see a Pikachu demo
    immediately, without GitHub sign-in or changes to the collection.

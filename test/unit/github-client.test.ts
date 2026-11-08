@@ -5,6 +5,7 @@ import {
   GitHubClient,
   parsePullRequestUrl,
   type GitHubErrorCode,
+  GITHUB_API_POLICY,
 } from '../../src/github/client';
 
 const reference = { owner: 'trainer', repository: 'pokemon', number: 42 };
@@ -21,6 +22,57 @@ const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
   new Response(JSON.stringify(body), { status, headers });
 const failure = (code: GitHubErrorCode) => (error: unknown) =>
   error instanceof GitHubApiError && error.code === code;
+
+test('direct API rejects metadata from a different repository while accepting canonical casing', async () => {
+  for (const html_url of [
+    'https://github.com/another/pokemon/pull/42',
+    'https://github.com/trainer/another/pull/42',
+  ]) {
+    const client = new GitHubClient(tokens, async () =>
+      json({ ...pr, html_url }),
+    );
+    await assert.rejects(
+      client.getPullRequest(reference),
+      failure('invalid-response'),
+    );
+  }
+  const client = new GitHubClient(tokens, async () =>
+    json({
+      ...pr,
+      html_url: 'https://github.com/TRAINER/POKEMON/pull/42',
+    }),
+  );
+  assert.equal((await client.getPullRequest(reference)).number, 42);
+});
+
+test('malicious rate-limit headers cannot disable direct GitHub access indefinitely', async () => {
+  let now = 0;
+  let calls = 0;
+  const client = new GitHubClient(
+    tokens,
+    async () => {
+      calls++;
+      return calls === 1
+        ? json({}, 429, {
+            'retry-after': '1e308',
+            'x-ratelimit-remaining': '0',
+            'x-ratelimit-reset': '1e308',
+          })
+        : json({ id: 123, login: 'trainer' });
+    },
+    () => now,
+  );
+  await assert.rejects(
+    client.getAuthenticatedUser(),
+    (error: unknown) =>
+      error instanceof GitHubApiError &&
+      error.retryAfterSeconds === GITHUB_API_POLICY.maximumCooldownSeconds,
+  );
+  await assert.rejects(client.getAuthenticatedUser(), failure('rate-limited'));
+  assert.equal(calls, 1);
+  now = GITHUB_API_POLICY.maximumCooldownSeconds * 1000 + 1;
+  assert.equal((await client.getAuthenticatedUser()).id, 123);
+});
 
 test('authenticated HTTPS requests use a fresh VS Code token and fixed API headers', async () => {
   let tokenRequests = 0;
