@@ -248,10 +248,10 @@ and competing writer instances. The unit tests never access a personal profile.
 
 The capture is now persisted with a species number (initial pool 1–151) and a
 pending scene intent. This anticipates the minimum assignment needed by US-09/10.
-There are still **no sprites, automatic encounter scenes, or Pokédex screen**.
-US-27/28 are core P0 retro pixel-art animations, not optional polish; they remain
-next-stage presentation work. The internal acknowledgement method is exercised
-by fixtures; no command marks scenes shown and the existing picker only opens PRs.
+US-06 itself added **no sprites, automatic scenes, or Pokédex screen**. The visual
+flow described below now supplies US-09/16/19/27/28 and uses this acknowledgement
+boundary. The full Pokédex screen remains planned; the existing native picker
+still only opens PRs, while the separate visual presenter consumes presentations.
 
 For optional manual testing with an isolated development profile:
 
@@ -261,8 +261,8 @@ For optional manual testing with an isolated development profile:
 3. Repeat polling, reload, then close/merge/reopen that same test PR as appropriate.
    The capture count, species, and original capture date must not change.
 4. Disable private access or sign out. No private capture should appear in the picker.
-5. Exercise presentation acknowledgements through unit fixtures until the actual
-   presenter exists; merely opening GitHub must not consume a presentation.
+5. Exercise presentation acknowledgements through unit fixtures or the visual
+   presenter below; merely opening GitHub must not consume a presentation.
 
 Real OAuth/private repository checks remain manual. This story does not change
 native scopes, add GitHub writes, or introduce a backend. The canonical key's
@@ -342,7 +342,59 @@ Manual verification with one active development-host window:
 
 Indexing lag and the existing search cap still apply. US-04 itself added no species
 or capture processing; US-06 now adds the minimal capture ledger and writer lock.
-Graphics, automatic scenes, and the Pokédex UI remain planned.
+The new visual-flow implementation adds automatic scenes and runtime sprites;
+the full Pokédex UI remains planned.
+
+## Visual flow acceptance and verification
+
+This PR combines the first user-testable US-09/16/19/27/28 flow:
+
+1. A new eligible PR gets a persisted deterministic capture before any scene opens.
+2. Show its name and FireRed front sprite indefinitely until CAPTURAR is chosen, followed by
+   ball throw/shakes, guaranteed success, and confirmation beside the editor.
+3. Sequence multiple captures without overlapping panels or duplicate automatic
+   presentations across windows; recheck authoritative pending state before display.
+4. Skip, Continue, Escape/close, reduced motion, and account/scope cancellation
+   never remove a reward. Only completed, dismissed captures are acknowledged;
+   early-close/MAIS TARDE leaves the encounter pending and defers automatic prompts
+   in that window until manual resume or restart. Reduced motion does not bypass CAPTURAR.
+5. Preview is synthetic and does not modify collection data or require sign-in.
+6. Missing artwork is clearly identified; text still confirms the saved reward.
+7. No merge, battle, failure chance, or full Pokédex screen is required for this test.
+
+Run `pnpm check`, `pnpm test:extension`, and `pnpm package`. Unit tests exercise
+the phase script with a fake DOM/clock, reduced motion, skip, hidden documents,
+safe HTML/CSP, sprite request validation/failures/cache, cross-window gating,
+stale queues, and canceled/acknowledged scenes. The real Extension Host smoke test
+opens/closes the actual preview webview with remote artwork disabled, without OAuth.
+
+For interactive verification, F5 then run **Preview Capture Animation**. The demo
+uses Pikachu, has a DEMO/NOT SAVED badge, and leaves capture counts unchanged.
+Then sign in, complete the baseline, open a fresh PR, and poll. Verify the real
+scene shows that PR and an already-saved reward. Wait without clicking and verify
+the Pokémon stays visible. Choose MAIS TARDE and poll: it must stay pending but not
+reopen automatically in that window. Use Show Pending Capture Animations to resume,
+then CAPTURAR → CONTINUAR and poll/reload;
+the acknowledged scene must not replay. Switch accounts or disable private access
+during a private capture: the old panel must close without exposing it afterward.
+With two development windows sharing storage, only one may present a given item.
+
+Application settings:
+
+- `prPokemonFinder.presentation.enabled` (true): automatic presentation only;
+  captures continue when disabled. **Show Pending Capture Animations** is manual.
+- `prPokemonFinder.presentation.remoteArtwork` (true): allow fixed-origin public
+  PNG retrieval. False prevents requests and displays a named, marked fallback.
+- `prPokemonFinder.presentation.reducedMotion` (false): direct success state only after CAPTURAR.
+  OS `prefers-reduced-motion` and VS Code `workbench.reduceMotion=on` also apply.
+
+The exact production HTML/CSS/JS can be inspected independently with `pnpm build`
+then `node scripts/preview-capture.mjs` and the printed localhost URL. Add `--offline`
+to avoid image requests, or `?reduced` in the URL for reduced motion. The preview
+server uses only synthetic data and a stub message bridge, not personal storage.
+Stop it with Ctrl+C. The committed sprite-free result screenshot was reviewed in
+the browser, along with normal/reduced scenes and a narrow editor-like layout.
+Third-party origin, rights caveats, and network behavior are in THIRD_PARTY_NOTICES.md.
 
 ## Storage recovery
 
@@ -353,7 +405,7 @@ The old value is left untouched as a migration backup. After migration, do not
 launch pre-US-06 builds against this same profile: they cannot read the newer file.
 
 Concurrent writers fail safely while the per-account lock is held and retry at
-the next scheduled poll. A terminated process may leave `.json.lock` or unique
+the next scheduled poll. A terminated process may leave `.json.lock`, `.presentation.lock`, or unique
 `.tmp` files behind. The extension does not steal locks or silently clear data.
 If storage errors persist after restart, close **all VS Code/extension-host
 processes using that storage directory**, make a backup of the entire `sync`

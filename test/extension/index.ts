@@ -35,6 +35,8 @@ async function verifyAuthentication(): Promise<void> {
   assert.ok(commands.includes('prPokemonFinder.showMonitoringStatus'));
   assert.ok(commands.includes('prPokemonFinder.pollNow'));
   assert.ok(commands.includes('prPokemonFinder.showPendingEncounters'));
+  assert.ok(commands.includes('prPokemonFinder.previewCaptureAnimation'));
+  assert.ok(commands.includes('prPokemonFinder.showCaptureAnimations'));
   assert.equal(api.getMonitoringStatus().phase, 'paused');
   assert.equal(api.getMonitoringStatus().captureCount, 0);
   assert.equal(api.getMonitoringStatus().pendingCount, 0);
@@ -52,6 +54,33 @@ async function verifyAuthentication(): Promise<void> {
   );
   assert.deepEqual(api.getAuthenticationState(), { status: 'disconnected' });
   await verifyCapturePersistence();
+  const config = vscode.workspace.getConfiguration('prPokemonFinder');
+  await config.update(
+    'presentation.remoteArtwork',
+    false,
+    vscode.ConfigurationTarget.Global,
+  );
+  const preview = vscode.commands.executeCommand(
+    'prPokemonFinder.previewCaptureAnimation',
+  );
+  let previewTab: vscode.Tab | undefined;
+  for (let attempt = 0; attempt < 120 && !previewTab; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    previewTab = vscode.window.tabGroups.all
+      .flatMap((group) => group.tabs)
+      .find((tab) => tab.label === 'Demo: Pikachu — Encounter');
+  }
+  assert.ok(
+    previewTab,
+    'Preview must open an actual webview tab, without OAuth or live artwork requests.',
+  );
+  await vscode.window.tabGroups.close(previewTab);
+  await preview;
+  assert.equal(
+    api.getMonitoringStatus().captureCount,
+    0,
+    'Preview must not create a capture.',
+  );
   console.log(
     'Extension Host smoke test passed: commands registered, signed out, no OAuth prompt.',
   );

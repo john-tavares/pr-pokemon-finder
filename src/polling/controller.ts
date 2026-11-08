@@ -1,6 +1,7 @@
 import type { Disposable } from '../auth/authentication';
 import { GitHubApiError } from '../github/client';
 import type { DiscoveryResult } from '../github/discovery';
+import type { PresentationGate } from '../presentation/gate';
 import {
   decodeIndex,
   capturePending,
@@ -79,6 +80,56 @@ export class PollingController implements Disposable {
   get pendingCaptures(): readonly Capture[] {
     const keys = new Set(this.pending.map((item) => item.key));
     return structuredClone(this.captures.filter((item) => keys.has(item.key)));
+  }
+
+  /** Recheck authoritative pending state under a cross-window scene gate. */
+  async presentNext(
+    gate: PresentationGate,
+    present: (capture: Capture, isCurrent: () => boolean) => Promise<boolean>,
+    excludedKeys: ReadonlySet<string> = new Set(),
+  ): Promise<boolean> {
+    const accountId = this.accountId;
+    const generation = this.generation;
+    const candidate = this.pending.find((item) => !excludedKeys.has(item.key));
+    if (accountId === undefined || !candidate) return false;
+    const current = () =>
+      !this.disposed && this.options.active && generation === this.generation;
+    return gate.run(accountId, async () => {
+      let capture: Capture | undefined;
+      let latest: PollingIndex | undefined;
+      await this.store.update(accountId, (value) => {
+        if (!current()) return undefined;
+        latest = decodeIndex(value);
+        if (
+          latest.presentations.some(
+            (item) => item.key === candidate.key && item.status === 'pending',
+          )
+        )
+          capture = latest.captures.find(
+            (item) =>
+              item.key === candidate.key &&
+              (this.options.includePrivate ||
+                item.source.accessMode === 'public'),
+          );
+        return undefined;
+      });
+      if (!current()) return false;
+      if (!capture) {
+        if (latest) {
+          this.loadCaptures(latest, this.options.includePrivate);
+          this.update({
+            ...this.current,
+            pendingCount: this.pending.length,
+            captureCount: this.captures.length,
+          });
+        }
+        return false;
+      }
+      const displayed = await present(structuredClone(capture), current);
+      if (!displayed || !current()) return false;
+      await this.confirmPresentation(candidate.key);
+      return true;
+    });
   }
 
   /** Called by a future presenter only after it actually displays/dismisses the scene. */

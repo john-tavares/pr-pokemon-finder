@@ -4,3 +4,8 @@
 !LICENSE
 !CHANGELOG.md
 !out/src/**/*.js
+!media/capture.css
+!media/capture.js
+!media/VT323-Regular.ttf
+!media/OFL-VT323.txt
+!THIRD_PARTY_NOTICES.md

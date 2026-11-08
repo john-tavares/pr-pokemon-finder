@@ -1,0 +1,452 @@
+@font-face {
+  font-family: BattlePixel;
+  src: url('./VT323-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+:root {
+  color-scheme: dark;
+  --ink: #384038;
+  --cream: #f8f8d8;
+}
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+body {
+  margin: 0;
+  background: var(--vscode-editor-background, #202328);
+  color: var(--vscode-editor-foreground, #d8dbdf);
+  font-family: monospace;
+}
+main {
+  width: 100%;
+  max-width: 784px;
+  padding: 24px 24px 18px;
+  margin: auto;
+}
+.masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  opacity: 0.7;
+}
+.mode {
+  font-size: 9px;
+}
+.console {
+  width: 100%;
+  aspect-ratio: 3/2;
+  container-type: inline-size;
+  border: 4px solid #303038;
+  background: var(--cream);
+  box-shadow: 0 0 0 2px #687078;
+  font-family: BattlePixel, monospace;
+  color: var(--ink);
+  image-rendering: pixelated;
+}
+.landscape {
+  position: relative;
+  width: 100%;
+  height: 70%;
+  overflow: hidden;
+  background: repeating-linear-gradient(0deg, #e8f0c8 0 2.5%, #e0e8c0 2.5% 5%);
+}
+.species-card,
+.trainer-card {
+  position: absolute;
+  z-index: 4;
+  background: #f8f8d8;
+  border: 3px solid #485048;
+  border-radius: 0 0 14px 0;
+  box-shadow: 3px 3px 0 #a0a880;
+}
+.species-card {
+  left: 3%;
+  top: 7%;
+  width: 45%;
+  padding: 1.1% 2.3%;
+}
+.name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+h1 {
+  font: inherit;
+  font-size: 4.3cqw;
+  line-height: 1;
+  margin: 0;
+  font-weight: normal;
+  white-space: nowrap;
+  text-shadow: 1px 1px #b8c0b0;
+}
+.species-number {
+  font-size: 3cqw;
+  line-height: 1;
+}
+.hp {
+  display: flex;
+  align-items: center;
+  gap: 3%;
+  margin: 3% 0 0 18%;
+  padding: 1% 2%;
+  background: #505850;
+  border-radius: 4px;
+  height: 2.6cqw;
+}
+.hp span {
+  color: #f8d868;
+  font: bold 1.7cqw monospace;
+  line-height: 1;
+}
+.hp i {
+  flex: 1;
+  height: 1.15cqw;
+  border: 1px solid #f8f8e0;
+  border-radius: 2px;
+  background: linear-gradient(#38a870 0 50%, #68d890 50%);
+}
+.platform {
+  position: absolute;
+  width: 43%;
+  height: 19%;
+  right: 6%;
+  bottom: 24%;
+  background: #b8c898;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 5px #d0d8b0,
+    inset 0 -4px #a8b888;
+}
+.pokemon {
+  position: absolute;
+  z-index: 3;
+  right: 11%;
+  bottom: 27%;
+  width: 29%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: end center;
+}
+#sprite,
+.companion img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+#sprite-fallback {
+  font:
+    12cqw BattlePixel,
+    monospace;
+  line-height: 1;
+  color: #607850;
+}
+.player-platform {
+  position: absolute;
+  left: -10%;
+  bottom: -10%;
+  width: 61%;
+  height: 30%;
+  border-radius: 50%;
+  background: #b8c898;
+  box-shadow: inset 0 6px #d0d8b0;
+}
+.companion {
+  position: absolute;
+  z-index: 3;
+  left: 7%;
+  bottom: -1%;
+  width: 35%;
+  aspect-ratio: 1;
+}
+.trainer-card {
+  right: 3%;
+  bottom: 6%;
+  width: 45%;
+  padding: 1.5% 2.5%;
+}
+.trainer-card > span {
+  font-size: 4.3cqw;
+  line-height: 1;
+}
+.trainer-note {
+  font-size: 2.2cqw;
+  text-align: right;
+  margin: 2% 0;
+}
+.battle-bottom {
+  display: flex;
+  width: 100%;
+  height: 30%;
+  background: #f8f8f8;
+  border-top: 3px solid #303840;
+}
+.dialogue {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 3% 4%;
+  border: 4px solid #c89858;
+  outline: 3px solid #506070;
+  outline-offset: -7px;
+  background: #285068;
+  color: white;
+  text-shadow: 2px 2px #182838;
+}
+.dialogue p {
+  margin: 0;
+  font-size: 4.1cqw;
+  line-height: 1.07;
+}
+.dialogue #detail {
+  margin-top: 3%;
+  font-size: 3.7cqw;
+}
+.dialogue-marker {
+  position: absolute;
+  bottom: 6%;
+  right: 5%;
+  font-size: 2.5cqw;
+  color: #f8d058;
+}
+.controls {
+  width: 44%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: center;
+  gap: 12% 2%;
+  padding: 3% 2%;
+  border: 3px solid #687078;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 3px #d8d8d0;
+}
+button {
+  position: relative;
+  font:
+    3.7cqw/1 BattlePixel,
+    monospace;
+  cursor: pointer;
+  color: #303038;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 3% 0 3% 13%;
+  white-space: nowrap;
+}
+button:before {
+  content: '▶';
+  font: 2cqw monospace;
+  position: absolute;
+  left: 0;
+  top: 15%;
+  visibility: hidden;
+}
+button:hover:enabled:before,
+button:focus-visible:before {
+  visibility: visible;
+}
+button:focus-visible {
+  outline: 2px dotted #303840;
+  outline-offset: 1px;
+}
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+#catch:before {
+  visibility: visible;
+}
+#skip,
+#continue {
+  grid-column: 1/-1;
+  font-size: 4cqw;
+}
+.capture-ball {
+  display: none;
+  position: absolute;
+  z-index: 5;
+  width: 5.5%;
+  aspect-ratio: 1;
+  border: 3px solid #303038;
+  border-radius: 50%;
+  background: linear-gradient(#e85840 0 44%, #303038 44% 58%, #f8f8e8 58%);
+  left: 27%;
+  bottom: 17%;
+}
+.capture-ball span {
+  position: absolute;
+  width: 43%;
+  height: 43%;
+  left: 29%;
+  top: 29%;
+  border: 2px solid #303038;
+  border-radius: 50%;
+  background: #f8f8e8;
+}
+.sparkles {
+  display: none;
+  position: absolute;
+  width: 25%;
+  height: 34%;
+  right: 12%;
+  bottom: 33%;
+  z-index: 5;
+}
+.sparkles i {
+  position: absolute;
+  color: #f8d040;
+  font: 5cqw BattlePixel;
+  font-style: normal;
+  text-shadow: 1px 1px #806018;
+}
+.sparkles i:nth-child(2) {
+  right: 0;
+  top: 20%;
+}
+.sparkles i:nth-child(3) {
+  left: 48%;
+  top: 0;
+}
+[data-phase='throw'] .capture-ball {
+  display: block;
+  animation: throw-ball 0.9s steps(12, end) forwards;
+}
+[data-phase='throw'] .pokemon {
+  animation: absorb 0.4s 0.45s steps(6, end) forwards;
+}
+[data-phase='shake'] .pokemon,
+[data-phase='captured'] .pokemon {
+  visibility: hidden;
+}
+[data-phase='shake'] .capture-ball,
+[data-phase='captured'] .capture-ball {
+  display: block;
+  left: 72%;
+  bottom: 42%;
+}
+[data-phase='shake'] .capture-ball {
+  animation: shake 0.7s steps(3, end) 3;
+}
+[data-phase='captured'] .sparkles {
+  display: block;
+}
+[data-phase='throw'] #open-pr,
+[data-phase='throw'] #retry-artwork,
+[data-phase='shake'] #open-pr,
+[data-phase='shake'] #retry-artwork,
+[data-phase='captured'] #open-pr,
+[data-phase='captured'] #retry-artwork {
+  display: none;
+}
+.capture-receipt {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #68707855;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.capture-receipt p {
+  margin: 6px 0;
+}
+.eyebrow {
+  font-size: 9px;
+  letter-spacing: 1px;
+  opacity: 0.65;
+}
+footer {
+  margin-top: 12px;
+  font-size: 10px;
+  line-height: 1.6;
+  opacity: 0.7;
+}
+footer p {
+  margin: 4px 0;
+}
+.companion-note {
+  font-size: 9px;
+}
+@keyframes throw-ball {
+  0% {
+    left: 27%;
+    bottom: 17%;
+    transform: rotate(0);
+  }
+  55% {
+    left: 51%;
+    bottom: 72%;
+  }
+  100% {
+    left: 72%;
+    bottom: 42%;
+    transform: rotate(360deg);
+  }
+}
+@keyframes absorb {
+  to {
+    transform: scale(0.05);
+    opacity: 0;
+  }
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  33% {
+    transform: rotate(-20deg);
+  }
+  66% {
+    transform: rotate(20deg);
+  }
+}
+[data-motion='reduced'] * {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (max-width: 480px) {
+  main {
+    padding: 16px 10px;
+  }
+  .masthead {
+    font-size: 9px;
+  }
+  .mode {
+    font-size: 8px;
+  }
+  .species-card,
+  .trainer-card {
+    border-width: 2px;
+  }
+  .battle-bottom {
+    border-top-width: 2px;
+  }
+  .dialogue {
+    border-width: 3px;
+    outline-width: 2px;
+    outline-offset: -5px;
+  }
+  .controls {
+    border-width: 2px;
+    box-shadow: inset 0 0 0 2px #d8d8d0;
+  }
+  .capture-ball {
+    border-width: 2px;
+  }
+  .capture-ball span {
+    border-width: 1px;
+  }
+}
