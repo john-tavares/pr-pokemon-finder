@@ -1,6 +1,6 @@
 {
   "name": "pr-pokemon-finder",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "displayName": "PR Pokémon Finder",
   "publisher": "john-tavares",
@@ -152,11 +152,11 @@
     "watch": "tsc -p tsconfig.json --watch",
     "test:unit": "pnpm build && node --test out/test/unit/*.test.js",
     "test:extension": "pnpm build && node scripts/test-extension.mjs",
-    "package": "pnpm build && node -e \"require('node:fs').mkdirSync('dist', {recursive: true})\" && vsce package --no-dependencies --githubBranch master --out dist/pr-pokemon-finder.vsix",
+    "package": "pnpm build && node -e \"require('node:fs').mkdirSync('dist', {recursive: true})\" && vsce package --no-dependencies --githubBranch master --out dist/pr-pokemon-finder.vsix && node scripts/verify-vsix.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint:md": "markdownlint-cli2",
-    "test:tooling": "node --test scripts/check-pr-title.test.mjs",
+    "test:tooling": "node --test scripts/*.test.mjs",
     "check:pr-title": "node scripts/check-pr-title.mjs"
   },
   "devDependencies": {
