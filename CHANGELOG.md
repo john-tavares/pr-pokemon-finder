@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.2 — Unreleased
+
+- Add an account-global collection read model with offline restore and isolation.
+- Preserve versioned deterministic assignments and serialize scene wakeups.
+- Harden direct GitHub response identity and cooldown handling.
+- Verify the built VSIX runtime resources and document local installation.
+
 ## Unreleased
 
 - Replace timed auto-capture with an explicit CAPTURAR choice; keep the Pokémon visible indefinitely, including reduced-motion mode.
