@@ -13,13 +13,23 @@ export class FilePollingStore implements PollingStore {
 
   /** A read never rewrites/migrates the durable ledger or acknowledges a scene. */
   async readSnapshot(accountId: number): Promise<PollingIndex> {
-    let snapshot: PollingIndex | undefined;
-    await this.update(accountId, (value) => {
-      snapshot = structuredClone(decodeIndex(value));
-      return undefined;
-    });
-    if (!snapshot) throw new Error('Snapshot unavailable.');
-    return snapshot;
+    if (!Number.isSafeInteger(accountId) || accountId <= 0)
+      throw new Error('Invalid account identity.');
+    let value: unknown;
+    try {
+      value = JSON.parse(
+        await readFile(
+          join(this.directory, `account-${accountId}.json`),
+          'utf8',
+        ),
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      value = this.readLegacy(accountId);
+    }
+    // Writers replace the whole file atomically: a reader sees either committed
+    // snapshot. It must not contend with capture acknowledgement for a write lock.
+    return structuredClone(decodeIndex(value));
   }
 
   async update(

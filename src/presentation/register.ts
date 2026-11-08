@@ -83,6 +83,15 @@ export function registerCapturePresentation(
           if (type === 'catch' && ready && panel.visible) captureStarted = true;
           if (type === 'captured' && captureStarted) completed = true;
           if (type === 'dismiss') panel.dispose();
+          if (type === 'open-pokedex' && ready && completed && panel.visible) {
+            // Complete only the presentation. The reward was already committed.
+            panel.dispose();
+            void vscode.commands.executeCommand(
+              demo
+                ? 'prPokemonFinder.previewPokedex'
+                : 'prPokemonFinder.showPokedex',
+            );
+          }
           if (type === 'open-pr' && !demo)
             void vscode.env.openExternal(vscode.Uri.parse(capture.source.url));
           if (type === 'retry-artwork' && remoteArtwork && !retrying) {

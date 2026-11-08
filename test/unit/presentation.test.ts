@@ -244,6 +244,30 @@ test('closing before Capture never reports successful capture; repeated clicks c
   );
 });
 
+test('Pokédex handoff is available only after an explicit capture completes, including reduced motion', () => {
+  const ui = scene(true);
+  ui.get('pokedex').events.get('click')!();
+  assert.deepEqual(
+    ui.messages.map((item) => item.type),
+    ['ready'],
+  );
+  ui.get('catch').events.get('click')!();
+  assert.equal(ui.get('pokedex').hidden, false);
+  assert.equal(ui.get('pokedex').disabled, false);
+  ui.get('pokedex').events.get('click')!();
+  assert.deepEqual(
+    ui.messages.map((item) => item.type),
+    ['ready', 'catch', 'captured', 'open-pokedex'],
+  );
+  const animated = scene();
+  animated.get('catch').events.get('click')!();
+  animated.get('pokedex').events.get('click')!();
+  assert.ok(!animated.messages.some((item) => item.type === 'open-pokedex'));
+  animated.get('skip').events.get('click')!();
+  animated.get('pokedex').events.get('click')!();
+  assert.equal(animated.messages.at(-1)?.type, 'open-pokedex');
+});
+
 test('FireRed front/back sprites use separate cache keys and explicit versioned paths', async () => {
   const paths: string[] = [];
   const loader = new SpriteLoader(async (input) => {

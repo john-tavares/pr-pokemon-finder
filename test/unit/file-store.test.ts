@@ -42,6 +42,20 @@ test('legacy read migrations remain non-destructive and unsupported files fail c
   assert.equal(await readFile(path, 'utf8'), '{"version":999}');
 });
 
+test('collection reads a committed snapshot without contending with presentation writes', async (t) => {
+  const directory = await fixture(t);
+  const store = new FilePollingStore(directory, () => undefined);
+  await store.update(123, decodeIndex);
+  const lockPath = join(directory, 'account-123.json.lock');
+  await writeFile(lockPath, 'another writer owns this lock');
+  assert.equal((await store.readSnapshot(123)).version, 3);
+  assert.equal(
+    await readFile(lockPath, 'utf8'),
+    'another writer owns this lock',
+  );
+  await assert.rejects(store.readSnapshot(-1));
+});
+
 test('atomic store migrates legacy only once and a second instance reads committed state', async (t) => {
   const directory = await fixture(t);
   const legacy = { version: 1, known: [1], pending: [], baselines: {} };

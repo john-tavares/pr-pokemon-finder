@@ -6,8 +6,8 @@ separate pending/shown presentation record. A reward is committed atomically
 before any scene opens. Closing a scene cannot remove its reward.
 
 The new read-only snapshot API supports offline consumers without writing a
-migration, acknowledging animations or changing the original file. Reads share
-the writer lock, return detached objects and reject corrupt/future schemas.
+migration, acknowledging animations or changing the original file. Reads consume
+atomically replaced snapshots without a write lock, return detached objects and reject corrupt/future schemas.
 Legacy v1/v2 data is decoded without discarding history; a successful sync writes
 the upgraded v3 ledger. Busy or orphan locks fail closed, never silently reset.
 

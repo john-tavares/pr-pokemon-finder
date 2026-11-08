@@ -70,7 +70,7 @@ export function renderPokedexHtml(options: PokedexOptions): string {
       <dl><dt>PR DE ORIGEM</dt><dd>${attr(capture.source.owner)}/${attr(capture.source.repository)} #${capture.source.number}</dd>
       <dt>DATA DA CAPTURA (UTC)</dt><dd><time datetime="${attr(capture.capturedAt)}">${attr(capture.capturedAt.slice(0, 19).replace('T', ' '))}</time></dd>
       <dt>APRESENTAÇÃO</dt><dd>${item.presentation === 'pending' ? 'Pendente · o Pokémon já está salvo' : 'Concluída'}</dd>
-      <dt>PR QUANDO DETECTADO</dt><dd>${capture.source.observedState === 'closed' ? 'Fechado' : 'Aberto'} · ${capture.source.accessMode === 'private' ? 'Privado' : 'Público'}</dd></dl>
+      <dt>PR QUANDO DETECTADO</dt><dd>${capture.source.observedState === 'closed' ? 'Fechado' : 'Aberto'} · ${capture.source.accessMode === 'private' ? 'Consulta com acesso privado' : 'Consulta pública'}</dd></dl>
       <button type="button" class="primary" data-open="${attr(capture.key)}" ${options.demo ? 'disabled' : ''}>ABRIR PR NO GITHUB ↗</button>
       <p class="record-note">Merge ou fechamento do PR não remove este Pokémon.</p>
     </section>`;

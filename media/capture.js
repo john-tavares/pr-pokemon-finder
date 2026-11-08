@@ -7,6 +7,7 @@
   const catchButton = document.getElementById('catch');
   const skip = document.getElementById('skip');
   const done = document.getElementById('continue');
+  const pokedex = document.getElementById('pokedex');
   const demo = scene.dataset.demo === 'true';
   const reduced =
     scene.dataset.motion === 'reduced' ||
@@ -31,7 +32,10 @@
       skip.hidden = true;
       done.hidden = false;
       done.disabled = false;
-      document.getElementById('close').textContent = 'FECHAR';
+      pokedex.hidden = false;
+      pokedex.disabled = false;
+      done.focus?.();
+      document.getElementById('close').hidden = true;
       vscode.postMessage({ type: 'captured' });
     }
   };
@@ -62,6 +66,11 @@
     vscode.postMessage({ type: 'dismiss' });
   };
   done.addEventListener('click', dismiss);
+  pokedex.addEventListener('click', () => {
+    if (!finished) return;
+    cancelTimers();
+    vscode.postMessage({ type: 'open-pokedex' });
+  });
   document.getElementById('close').addEventListener('click', dismiss);
   document
     .getElementById('open-pr')

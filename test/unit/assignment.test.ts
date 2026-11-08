@@ -4,6 +4,12 @@ import {
   assignPokemon,
   isPokemonAssignment,
 } from '../../src/captures/assignment';
+import { demoCollection } from '../../src/collection/demo';
+import {
+  capturePending,
+  decodeIndex,
+  markPresentationShown,
+} from '../../src/polling/index';
 
 test('versioned deterministic assignment has stable canonical-key golden vectors', () => {
   const key = 'pr:v1:github.com/trainer/repo/1';
@@ -39,4 +45,28 @@ test('saved versioned assignments remain readable without rerolling old rewards'
     false,
   );
   assert.throws(() => assignPokemon('not-a-pr'));
+});
+
+test('restored retired assignments survive scene completion and another sync unchanged', () => {
+  const record = demoCollection().entries[0]!.capture;
+  const capture = {
+    ...record,
+    pokemon: { algorithm: 'retired-kanto-v7', speciesId: 151 },
+  };
+  const ledger = {
+    ...decodeIndex(undefined),
+    known: [capture.key],
+    captures: [capture],
+    presentations: [{ key: capture.key, status: 'pending' as const }],
+  };
+  const restored = decodeIndex(JSON.parse(JSON.stringify(ledger)));
+  const shown = markPresentationShown(
+    restored,
+    capture.key,
+    '2026-11-08T15:00:00Z',
+  );
+  const synced = capturePending(shown, '2026-11-08T16:00:00Z');
+  assert.deepEqual(synced.captures, [capture]);
+  assert.equal(synced.presentations[0]!.status, 'shown');
+  assert.equal(restored.presentations[0]!.status, 'pending');
 });
