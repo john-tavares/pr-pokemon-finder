@@ -37,6 +37,11 @@ layout is implemented in HTML/CSS, not an extracted background or game screensho
 
 ## VT323 pixel font
 
+Documentation screenshots may show runtime-loaded Pokémon sprites to illustrate
+the extension. Those depicted characters/artwork retain their owners' rights and
+are not relicensed under MIT. Screenshot fixtures contain only synthetic PR data.
+No standalone sprite assets are distributed in the VSIX.
+
 The unmodified `media/VT323-Regular.ttf` is from
 [Google Fonts / VT323](https://github.com/google/fonts/tree/main/ofl/vt323).
 It is Copyright 2011 The VT323 Project Authors and licensed under the SIL Open

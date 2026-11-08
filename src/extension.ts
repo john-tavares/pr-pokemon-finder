@@ -17,6 +17,7 @@ import type { PollingStatus } from './polling/controller';
 import { registerCapturePresentation } from './presentation/register';
 import { registerCollection } from './collection/register';
 import type { CollectionState } from './collection/controller';
+import { registerPokedex } from './collection/view';
 
 export interface ExtensionApi {
   getAuthenticationState(): AuthenticationState;
@@ -34,6 +35,7 @@ export async function activate(
   registerDiscoveryCommands(context, github, authentication, provider);
   const polling = registerPolling(context, github, authentication);
   const collection = registerCollection(context, authentication, polling);
+  registerPokedex(context, collection);
   registerCapturePresentation(context, polling);
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,

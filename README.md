@@ -8,7 +8,7 @@ a canonical PR index and idempotent automatic captures. Each eligible new PR now
 receives a deterministic species number, persisted before any presentation.
 The first visual flow (US-09/16/19/27/28) now presents a name/sprite, retro encounter,
 guaranteed capture, and confirmation. There is no Marketplace release yet, and
-the full Pokédex screen remains planned.
+the account-global Pokédex is available from its status-bar button or **Open Pokédex**.
 
 ## Test your first capture
 
@@ -33,6 +33,9 @@ Version **0.0.2** is a local pre-release; no Marketplace publication is implied.
 
 [US 23](docs/us-23-multiple-repositories.md): **Browse Repository Captures**
 opens rewards by source across repositories, without configuring any remotes.
+
+[US 21](docs/us-21-pokedex.md) adds the visual Pokédex, source details, offline
+fallback and **Preview Pokédex** (no login or collection changes).
 
 1. Install the generated VSIX or run this checkout with **F5**.
 2. Run **PR Pokémon Finder: Preview Capture Animation** to see a Pikachu demo
@@ -60,6 +63,18 @@ movement **after** you select CAPTURAR; it never skips the decision. OS/VS Code 
 With automatic scenes off, use **Show Pending Capture Animations** manually.
 
 ![Sprite-free capture confirmation preview](docs/images/capture-result.jpg)
+
+### Extension gallery
+
+The encounter screenshot below was captured from the real production renderer
+using sanitized demo data. It shows the manual CAPTURAR choice and optional
+FireRed/LeafGreen sprites, not a new reward granted to your account.
+The result screenshot above has artwork disabled.
+
+![FireRed-style encounter waiting for capture](docs/images/firered-encounter.jpg)
+
+Pokémon artwork and trademarks are not covered by the project's MIT license;
+see [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## Try GitHub authentication
 
