@@ -70,6 +70,16 @@
     },
     "commands": [
       {
+        "command": "prPokemonFinder.showPokedex",
+        "title": "Open Pokédex",
+        "category": "PR Pokémon Finder"
+      },
+      {
+        "command": "prPokemonFinder.previewPokedex",
+        "title": "Preview Pokédex",
+        "category": "PR Pokémon Finder"
+      },
+      {
         "command": "prPokemonFinder.browseRepositoryCaptures",
         "title": "Browse Repository Captures",
         "category": "PR Pokémon Finder"

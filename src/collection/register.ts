@@ -56,6 +56,10 @@ export function registerCollection(
   };
   context.subscriptions.push(
     collection,
+    vscode.commands.registerCommand(
+      'prPokemonFinder.refreshCollection',
+      refresh,
+    ),
     authentication.onDidChangeState(() => {
       void refresh();
     }),

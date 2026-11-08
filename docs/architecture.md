@@ -284,7 +284,7 @@ Do not erase records because a request failed or a result page is incomplete.
 - Future species-pool expansion, rarity, and Shiny odds without changing prior assignments.
 - Single-consumer presentation coordination across windows and cross-profile behavior.
 - Whether GitHub Enterprise is in the initial supported scope.
-- Further accessibility/scene customization and full collection-screen design.
+- Further accessibility/scene customization beyond the implemented Pokédex screen.
 - Asset sources, distribution permissions, attribution, and offline behavior.
 
 These are not settled requirements. Resolve the relevant decisions in an issue or

@@ -2,6 +2,10 @@
 
 ## 0.0.2 — Unreleased
 
+- Add the FireRed-inspired Pokédex with capture source details, paging, offline
+  fallback, account/scope isolation and a safe demo command.
+- Browse global rewards by originating repository with no workspace configuration.
+
 - Add an account-global collection read model with offline restore and isolation.
 - Preserve versioned deterministic assignments and serialize scene wakeups.
 - Harden direct GitHub response identity and cooldown handling.

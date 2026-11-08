@@ -37,6 +37,18 @@ async function verifyAuthentication(): Promise<void> {
   assert.ok(commands.includes('prPokemonFinder.showPendingEncounters'));
   assert.ok(commands.includes('prPokemonFinder.previewCaptureAnimation'));
   assert.ok(commands.includes('prPokemonFinder.showCaptureAnimations'));
+  for (const name of [
+    'showPokedex',
+    'previewPokedex',
+    'showCollectionStatus',
+    'browseRepositoryCaptures',
+    'showNetworkPolicy',
+  ])
+    assert.ok(commands.includes(`prPokemonFinder.${name}`));
+  assert.deepEqual(api.getCollectionState(), {
+    phase: 'signed-out',
+    entries: [],
+  });
   assert.equal(api.getMonitoringStatus().phase, 'paused');
   assert.equal(api.getMonitoringStatus().captureCount, 0);
   assert.equal(api.getMonitoringStatus().pendingCount, 0);
@@ -76,6 +88,24 @@ async function verifyAuthentication(): Promise<void> {
   );
   await vscode.window.tabGroups.close(previewTab);
   await preview;
+  await vscode.commands.executeCommand('prPokemonFinder.previewPokedex');
+  const pokedexTab = await waitForTab('Demo: Pokédex');
+  assert.ok(
+    pokedexTab,
+    'Pokédex demo must open an actual webview without auth/storage writes.',
+  );
+  await vscode.window.tabGroups.close(pokedexTab);
+  await vscode.commands.executeCommand('prPokemonFinder.showPokedex');
+  const realPokedex = await waitForTab('PR Pokémon — Pokédex');
+  assert.ok(
+    realPokedex,
+    'Signed-out collection must remain accessible without OAuth.',
+  );
+  await vscode.window.tabGroups.close(realPokedex);
+  assert.deepEqual(api.getCollectionState(), {
+    phase: 'signed-out',
+    entries: [],
+  });
   assert.equal(
     api.getMonitoringStatus().captureCount,
     0,
@@ -85,6 +115,18 @@ async function verifyAuthentication(): Promise<void> {
     'Extension Host smoke test passed: commands registered, signed out, no OAuth prompt.',
   );
   console.log('PR_POKEMON_AUTH_SMOKE_PASSED');
+}
+
+/** Exercise crypto/file APIs in the actual minimum-version Electron Node runtime. */
+async function waitForTab(label: string): Promise<vscode.Tab | undefined> {
+  for (let attempt = 0; attempt < 120; attempt++) {
+    const tab = vscode.window.tabGroups.all
+      .flatMap((group) => group.tabs)
+      .find((item) => item.label === label);
+    if (tab) return tab;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return undefined;
 }
 
 /** Exercise crypto/file APIs in the actual minimum-version Electron Node runtime. */

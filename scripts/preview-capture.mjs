@@ -5,6 +5,19 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { renderSceneHtml } = require('../out/src/presentation/webview.js');
 const { SpriteLoader } = require('../out/src/presentation/sprites.js');
+const { renderPokedexHtml } = require('../out/src/collection/webview.js');
+const { demoCollection } = require('../out/src/collection/demo.js');
+const previewSprites = new Map();
+if (!process.argv.includes('--offline')) {
+  const loader = new SpriteLoader();
+  await Promise.all(
+    demoCollection().entries.map(async (item) => {
+      const id = item.capture.pokemon.speciesId;
+      const uri = await loader.load(id);
+      if (uri) previewSprites.set(id, uri);
+    }),
+  );
+}
 const sprite = process.argv.includes('--offline')
   ? undefined
   : await new SpriteLoader().load(25);
@@ -47,6 +60,40 @@ const server = createServer(async (request, response) => {
         demo: true,
         remoteArtwork: !!sprite,
       }),
+    );
+  } else if (url.pathname === '/pokedex') {
+    const state = demoCollection();
+    if (url.searchParams.has('empty')) state.entries = [];
+    response.setHeader('Content-Type', 'text/html; charset=utf-8');
+    response.end(
+      renderPokedexHtml({
+        state,
+        page: 0,
+        demo: true,
+        remoteArtwork:
+          !url.searchParams.has('offline') && previewSprites.size > 0,
+        nonce: 'isolated-development-preview',
+        scriptUri: '/pokedex.js',
+        styleUri: '/pokedex.css',
+        cspSource: "'self'",
+      }),
+    );
+  } else if (url.pathname === '/pokedex.js') {
+    response.setHeader('Content-Type', 'application/javascript');
+    const messages = url.searchParams.has('offline')
+      ? []
+      : [...previewSprites].map(([speciesId, uri]) => ({
+          type: 'sprite',
+          speciesId,
+          uri,
+        }));
+    response.end(
+      `window.previewMessages=[];window.acquireVsCodeApi=()=>({postMessage(message){window.previewMessages.push(message);if(message.type==='ready')setTimeout(()=>{for(const data of ${JSON.stringify(messages)})window.dispatchEvent(new MessageEvent('message',{data}));},10);}});\n${await readFile(new URL('../media/pokedex.js', import.meta.url), 'utf8')}`,
+    );
+  } else if (url.pathname === '/pokedex.css') {
+    response.setHeader('Content-Type', 'text/css');
+    response.end(
+      await readFile(new URL('../media/pokedex.css', import.meta.url), 'utf8'),
     );
   } else if (url.pathname === '/capture.js') {
     response.setHeader('Content-Type', 'application/javascript');

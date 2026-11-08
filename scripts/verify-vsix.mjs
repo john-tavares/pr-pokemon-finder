@@ -71,6 +71,8 @@ export function verifyVsix(bytes) {
     'extension/media/VT323-Regular.ttf',
     'extension/media/capture.js',
     'extension/media/capture.css',
+    'extension/media/pokedex.css',
+    'extension/media/pokedex.js',
     'extension/out/src/extension.js',
     'extension.vsixmanifest',
     '[Content_Types].xml',
