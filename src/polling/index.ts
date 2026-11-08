@@ -1,7 +1,11 @@
 import type { DiscoveryResult } from '../github/discovery';
 import { parsePullRequestUrl } from '../github/client';
 import { isPullRequestKey, pullRequestKey } from '../github/identity';
-import { assignPokemon, type PokemonAssignment } from '../captures/assignment';
+import {
+  assignPokemon,
+  isPokemonAssignment,
+  type PokemonAssignment,
+} from '../captures/assignment';
 
 interface LegacyPendingEncounter {
   readonly id: number;
@@ -202,11 +206,7 @@ export function decodeIndex(value: unknown): PollingIndex {
       !known.has(capture.key) ||
       typeof capture.capturedAt !== 'string' ||
       !Number.isFinite(Date.parse(capture.capturedAt)) ||
-      !capture.pokemon ||
-      capture.pokemon.algorithm !== 'sha256-kanto-v1' ||
-      !Number.isSafeInteger(capture.pokemon.speciesId) ||
-      capture.pokemon.speciesId < 1 ||
-      capture.pokemon.speciesId > 151 ||
+      !isPokemonAssignment(capture.pokemon) ||
       !capture.source ||
       capture.source.key !== capture.key
     )
