@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CollectionController } from '../../src/collection/controller';
+import { groupByRepository } from '../../src/collection/repositories';
 import {
   capturePending,
   decodeIndex,
@@ -35,6 +36,34 @@ export function ledger(): PollingIndex {
     '2026-11-08T10:00:00Z',
   );
 }
+
+test('same PR number across repositories remains separate with source provenance after restart', async () => {
+  const index = ledger();
+  assert.equal(
+    index.captures[0]!.source.number,
+    index.captures[1]!.source.number,
+  );
+  assert.notEqual(index.captures[0]!.key, index.captures[1]!.key);
+  const controller = new CollectionController(async () =>
+    decodeIndex(JSON.parse(JSON.stringify(index))),
+  );
+  await controller.refresh(true, 123, true);
+  const groups = groupByRepository(controller.state.entries);
+  assert.deepEqual(
+    groups.map((group) => group.label),
+    ['trainer/repo-0', 'trainer/repo-1'],
+  );
+  assert.equal(groups.flatMap((group) => group.entries).length, 2);
+  assert.notEqual(
+    groups[0]!.entries[0]!.capture.source.url,
+    groups[1]!.entries[0]!.capture.source.url,
+  );
+  (groups[0]!.entries as unknown[]).length = 0;
+  assert.equal(controller.state.entries.length, 2);
+  await controller.refresh(true, 123, false);
+  assert.equal(groupByRepository(controller.state.entries).length, 1);
+  assert.equal(index.captures.length, 2);
+});
 
 test('global collection includes pending and closed-PR rewards before any animation', async () => {
   const index = ledger();
