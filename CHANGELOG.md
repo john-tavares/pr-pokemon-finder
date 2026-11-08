@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Persist one immutable capture per eligible new PR, independently of merge or closure (US-06).
+- Separate pending/shown presentation acknowledgements from captured rewards; no animations are added yet.
+- Add an initial deterministic species-number assignment (1–151), without artwork, rarity, or Shiny variants.
+- Migrate v1/v2 indexes to a v3 capture ledger with exclusive local writes and atomic snapshots.
+- Align the roadmap with immediate captures and core retro pixel-art animations; remove merge/flee requirements.
+
 - Identify PRs by a canonical host/owner/repository/number key in discovery and polling (US-05).
 - Migrate the polling index to schema v2 without discarding pending encounters or legacy history.
 

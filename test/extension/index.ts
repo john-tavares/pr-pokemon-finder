@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict';
 import * as vscode from 'vscode';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { FilePollingStore } from '../../src/polling/file-store';
+import {
+  capturePending,
+  decodeIndex,
+  markPresentationShown,
+  type PendingEncounter,
+} from '../../src/polling/index';
 import type { ExtensionApi } from '../../src/extension';
 import { SIGN_IN_COMMAND, STATUS_COMMAND } from '../../src/auth/status';
 import {
@@ -26,6 +36,8 @@ async function verifyAuthentication(): Promise<void> {
   assert.ok(commands.includes('prPokemonFinder.pollNow'));
   assert.ok(commands.includes('prPokemonFinder.showPendingEncounters'));
   assert.equal(api.getMonitoringStatus().phase, 'paused');
+  assert.equal(api.getMonitoringStatus().captureCount, 0);
+  assert.equal(api.getMonitoringStatus().pendingCount, 0);
   assert.equal(
     vscode.workspace
       .getConfiguration('prPokemonFinder')
@@ -39,10 +51,54 @@ async function verifyAuthentication(): Promise<void> {
     'application',
   );
   assert.deepEqual(api.getAuthenticationState(), { status: 'disconnected' });
+  await verifyCapturePersistence();
   console.log(
     'Extension Host smoke test passed: commands registered, signed out, no OAuth prompt.',
   );
   console.log('PR_POKEMON_AUTH_SMOKE_PASSED');
+}
+
+/** Exercise crypto/file APIs in the actual minimum-version Electron Node runtime. */
+async function verifyCapturePersistence(): Promise<void> {
+  const directory = await mkdtemp(join(tmpdir(), 'pr-pokemon-host-test-'));
+  try {
+    const source: PendingEncounter = {
+      key: 'pr:v1:github.com/trainer/repo/1',
+      host: 'github.com',
+      id: 1,
+      owner: 'trainer',
+      repository: 'repo',
+      number: 1,
+      url: 'https://github.com/trainer/repo/pull/1',
+      detectedAt: '2026-11-07T12:00:00Z',
+      accessMode: 'public',
+      observedState: 'open',
+    };
+    const store = new FilePollingStore(directory, () => undefined);
+    const captured = await store.update(123, (value) =>
+      capturePending(
+        { ...decodeIndex(value), known: [source.key], pending: [source] },
+        source.detectedAt,
+      ),
+    );
+    assert.equal(captured?.captures[0]?.pokemon.speciesId, 121);
+    const restored = new FilePollingStore(directory, () => {
+      throw new Error('Must not reread legacy');
+    });
+    await restored.update(123, (value) =>
+      markPresentationShown(decodeIndex(value), source.key, source.detectedAt),
+    );
+    const result = await restored.update(123, (value) =>
+      capturePending(decodeIndex(value), source.detectedAt),
+    );
+    assert.equal(result?.captures.length, 1);
+    assert.equal(result?.presentations[0]?.status, 'shown');
+    console.log(
+      'Capture persistence smoke test passed: committed once, restored, acknowledged.',
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 }
 
 export async function run(): Promise<void> {

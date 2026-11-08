@@ -228,6 +228,46 @@ or delayed indexed results. The UI warns about detected partial batches; it does
 not claim a complete permanent history. Search `state` is open/closed; an absent
 `mergedAt` is unknown. Do not infer capture/escape transitions from it.
 
+## US-06 acceptance and verification
+
+Revised public requirements (2026-11-07):
+
+1. Repeated polling of one PR must not create another Pokémon or collection entry.
+2. Restarting preserves captures and does not automatically replay an acknowledged presentation.
+3. Persist the capture before presenting it; presentation failure/dismissal must not lose the reward.
+4. Keep capture records separate from pending/shown presentation state for interruption recovery.
+5. Merge, closure, and reopening neither grant nor remove a Pokémon.
+6. Local state and the canonical PR key are the synchronization reference.
+
+`pnpm check` exercises the ledger, controller, initial deterministic assignment,
+and real temporary-directory file store with no account or GitHub credentials.
+Coverage includes repeated/state-changing snapshots, restart acknowledgement,
+failed capture/acknowledgement writes, interrupted presentation recovery, v1/v2
+migration, corrupt/future schemas, immutable assignment, private-mode hiding,
+and competing writer instances. The unit tests never access a personal profile.
+
+The capture is now persisted with a species number (initial pool 1–151) and a
+pending scene intent. This anticipates the minimum assignment needed by US-09/10.
+There are still **no sprites, automatic encounter scenes, or Pokédex screen**.
+US-27/28 are core P0 retro pixel-art animations, not optional polish; they remain
+next-stage presentation work. The internal acknowledgement method is exercised
+by fixtures; no command marks scenes shown and the existing picker only opens PRs.
+
+For optional manual testing with an isolated development profile:
+
+1. Sign in and let the first baseline complete. Historical PRs do not grant rewards.
+2. Open a test PR, run **Check for New Pull Requests Now**, and inspect **Show
+   Pending Capture Presentations**. A species number and originating PR appear once.
+3. Repeat polling, reload, then close/merge/reopen that same test PR as appropriate.
+   The capture count, species, and original capture date must not change.
+4. Disable private access or sign out. No private capture should appear in the picker.
+5. Exercise presentation acknowledgements through unit fixtures until the actual
+   presenter exists; merely opening GitHub must not consume a presentation.
+
+Real OAuth/private repository checks remain manual. This story does not change
+native scopes, add GitHub writes, or introduce a backend. The canonical key's
+existing repository rename/transfer limitation is unchanged.
+
 ## US-05 acceptance and verification
 
 Public requirements:
@@ -271,13 +311,13 @@ settings are `prPokemonFinder.polling.enabled` and
 `prPokemonFinder.polling.intervalSeconds` (60–3600). The interval is measured from
 completion, so slow requests do not overlap. Rate limits can delay the next check.
 **Check for New Pull Requests Now** shares any in-flight cycle. **Show Monitoring
-Status** and **Show Pending Encounters** expose the current state.
+Status** and **Show Pending Capture Presentations** expose the current state.
 
 The first successful query establishes a baseline per account/access mode. Historical
 PRs are recorded without retroactive encounters; PRs created from that query's start
 onward enter the pending queue when first discovered. The queue also records PRs
-closed between checks, without processing captures yet. The minimal versioned index
-is account-scoped global state, distinct from future full encounter storage. API
+closed between checks. Originally US-04 only queued references; US-06 now consumes
+them into captures without waiting for merge and stores an account-scoped v3 ledger. API
 failures do not clear it; unsupported schemas/storage errors stop commits and show
 `storage-error` rather than resetting progress.
 
@@ -300,9 +340,28 @@ Manual verification with one active development-host window:
 6. Change accounts or access modes during a request and verify stale results are
    discarded. Public-only mode must hide private-mode pending references.
 
-Indexing lag and the existing search cap still apply. No Pokémon graphics, species,
-capture transitions, or per-new-encounter notifications are added in this story.
-Cross-window coordination and full encounter persistence remain follow-up work.
+Indexing lag and the existing search cap still apply. US-04 itself added no species
+or capture processing; US-06 now adds the minimal capture ledger and writer lock.
+Graphics, automatic scenes, and the Pokédex UI remain planned.
+
+## Storage recovery
+
+Schema v3 lives in `globalStorageUri/sync/account-<github-user-id>.json`, in the
+extension's own desktop storage directory, not the project/worktree. V1/v2 data
+is read from the old globalState key only when this account file does not exist.
+The old value is left untouched as a migration backup. After migration, do not
+launch pre-US-06 builds against this same profile: they cannot read the newer file.
+
+Concurrent writers fail safely while the per-account lock is held and retry at
+the next scheduled poll. A terminated process may leave `.json.lock` or unique
+`.tmp` files behind. The extension does not steal locks or silently clear data.
+If storage errors persist after restart, close **all VS Code/extension-host
+processes using that storage directory**, make a backup of the entire `sync`
+directory, then move only the verified orphan lock/temporary files to a separate
+backup location before restarting. Never move or delete the account JSON snapshot
+to fix a lock. Lock metadata records a PID/time for diagnosis, not proof it is safe
+to remove while any writer is running. An invalid snapshot needs diagnosis and
+recovery from a verified backup, not a reset. No recovery command is added here.
 
 ## Troubleshooting
 

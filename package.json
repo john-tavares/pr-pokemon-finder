@@ -63,7 +63,7 @@
       },
       {
         "command": "prPokemonFinder.showPendingEncounters",
-        "title": "Show Pending Encounters",
+        "title": "Show Pending Capture Presentations",
         "category": "PR Pokémon Finder"
       },
       {

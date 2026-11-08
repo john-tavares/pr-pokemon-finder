@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
+import { join } from 'node:path';
 import type { AuthenticationController } from '../auth/authentication';
 import { privateRepositoriesEnabled } from '../auth/vscode-session-provider';
 import type { GitHubClient } from '../github/client';
 import { discoverPullRequests } from '../github/discovery';
 import { PollingController } from './controller';
+import { FilePollingStore } from './file-store';
 
 export function registerPolling(
   context: vscode.ExtensionContext,
@@ -12,13 +14,9 @@ export function registerPolling(
 ): PollingController {
   const polling = new PollingController(
     (options) => discoverPullRequests(github, options),
-    {
-      // Keep the original storage slot so v1 data is migrated, not abandoned.
-      read: (id) => context.globalState.get(`polling.v1.account.${id}`),
-      write: async (id, index) => {
-        await context.globalState.update(`polling.v1.account.${id}`, index);
-      },
-    },
+    new FilePollingStore(join(context.globalStorageUri.fsPath, 'sync'), (id) =>
+      context.globalState.get(`polling.v1.account.${id}`),
+    ),
     () => authentication.invalidateSession(),
   );
   const bar = vscode.window.createStatusBarItem(
@@ -52,7 +50,7 @@ export function registerPolling(
           : status.phase === 'paused'
             ? '$(debug-pause) PR Pokémon: Paused'
             : `$(sync) PR Pokémon: ${status.pendingCount} pending`;
-    bar.tooltip = `Monitoring: ${status.phase}. Known PRs: ${status.knownCount}. Pending encounters: ${status.pendingCount}.${status.error ? ` Error: ${status.error}.` : ''}`;
+    bar.tooltip = `Monitoring: ${status.phase}. Known PRs: ${status.knownCount}. Captures: ${status.captureCount}. Pending presentations: ${status.pendingCount}.${status.error ? ` Error: ${status.error}.` : ''}`;
     bar.accessibilityInformation = { label: bar.tooltip };
     bar.show();
   };
@@ -75,7 +73,7 @@ export function registerPolling(
       () => {
         const status = polling.status;
         return vscode.window.showInformationMessage(
-          `PR monitoring: ${status.phase}. ${status.knownCount} known PRs, ${status.pendingCount} pending encounters. Last check: ${status.lastCheckedAt ?? 'none'}.${status.error ? ` Error: ${status.error}.` : ''}`,
+          `PR monitoring: ${status.phase}. ${status.knownCount} known PRs, ${status.captureCount} captures, ${status.pendingCount} pending presentations. Last check: ${status.lastCheckedAt ?? 'none'}.${status.error ? ` Error: ${status.error}.` : ''}`,
         );
       },
     ),
@@ -89,12 +87,12 @@ export function registerPolling(
     vscode.commands.registerCommand(
       'prPokemonFinder.showPendingEncounters',
       async () => {
-        const items = polling.pendingEncounters;
+        const items = polling.pendingCaptures;
         if (!items.length) {
           await vscode.window.showInformationMessage(
             polling.status.phase === 'paused'
               ? 'Monitoring is paused. Sign in and enable polling to load pending encounters.'
-              : 'No loaded PRs awaiting encounter generation.',
+              : 'No loaded captures awaiting presentation.',
           );
           return;
         }
@@ -106,12 +104,12 @@ export function registerPolling(
         try {
           const choice = await vscode.window.showQuickPick(
             items.map((item) => ({
-              label: `${item.owner}/${item.repository} #${item.number}`,
-              description: `${item.observedState} when detected ${item.detectedAt} · Pokémon generation pending`,
+              label: `${item.source.owner}/${item.source.repository} #${item.source.number}`,
+              description: `Pokémon #${item.pokemon.speciesId} captured · Retro presentation pending`,
               item,
             })),
             {
-              title: 'PR Pokémon Finder: Pending Encounters',
+              title: 'PR Pokémon Finder: Pending Capture Presentations',
               placeHolder: 'Choose a PR to open on GitHub.',
             },
             source.token,
@@ -121,7 +119,9 @@ export function registerPolling(
             currentKey === key &&
             !source.token.isCancellationRequested
           )
-            await vscode.env.openExternal(vscode.Uri.parse(choice.item.url));
+            await vscode.env.openExternal(
+              vscode.Uri.parse(choice.item.source.url),
+            );
         } finally {
           source.dispose();
           if (picker === source) picker = undefined;

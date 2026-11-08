@@ -3,14 +3,19 @@ import { GitHubApiError } from '../github/client';
 import type { DiscoveryResult } from '../github/discovery';
 import {
   decodeIndex,
+  capturePending,
+  markPresentationShown,
   reconcilePolling,
+  type Capture,
   type PendingEncounter,
   type PollingIndex,
 } from './index';
 
 export interface PollingStore {
-  read(accountId: number): unknown;
-  write(accountId: number, index: PollingIndex): Promise<void>;
+  update(
+    accountId: number,
+    transform: (value: unknown) => PollingIndex | undefined,
+  ): Promise<PollingIndex | undefined>;
 }
 export interface PollingOptions {
   active: boolean;
@@ -21,6 +26,7 @@ export interface PollingStatus {
   readonly phase: 'paused' | 'polling' | 'idle' | 'partial' | 'error';
   readonly knownCount: number;
   readonly pendingCount: number;
+  readonly captureCount: number;
   readonly lastCheckedAt?: string;
   readonly error?: string;
 }
@@ -44,8 +50,11 @@ export class PollingController implements Disposable {
     phase: 'paused',
     knownCount: 0,
     pendingCount: 0,
+    captureCount: 0,
   };
   private pending: readonly PendingEncounter[] = [];
+  private captures: readonly Capture[] = [];
+  private accountId: number | undefined;
   private generation = 0;
   private timer: Disposable | undefined;
   private running: Promise<void> | undefined;
@@ -65,6 +74,54 @@ export class PollingController implements Disposable {
   }
   get pendingEncounters(): readonly PendingEncounter[] {
     return this.pending.map((item) => ({ ...item }));
+  }
+
+  get pendingCaptures(): readonly Capture[] {
+    const keys = new Set(this.pending.map((item) => item.key));
+    return structuredClone(this.captures.filter((item) => keys.has(item.key)));
+  }
+
+  /** Called by a future presenter only after it actually displays/dismisses the scene. */
+  async confirmPresentation(key: string): Promise<void> {
+    const accountId = this.accountId;
+    const generation = this.generation;
+    if (
+      accountId === undefined ||
+      !this.pending.some((item) => item.key === key)
+    )
+      return;
+    const current = () =>
+      !this.disposed && this.options.active && generation === this.generation;
+    const index = await this.store.update(accountId, (value) =>
+      current()
+        ? markPresentationShown(
+            decodeIndex(value),
+            key,
+            new Date(this.now()).toISOString(),
+          )
+        : undefined,
+    );
+    if (!index || !current()) return;
+    this.loadCaptures(index, this.options.includePrivate);
+    this.update({
+      ...this.current,
+      pendingCount: this.pending.length,
+      captureCount: this.captures.length,
+    });
+  }
+
+  private loadCaptures(index: PollingIndex, includePrivate: boolean): void {
+    this.captures = index.captures.filter(
+      (item) => includePrivate || item.source.accessMode === 'public',
+    );
+    const pending = new Set(
+      index.presentations
+        .filter((item) => item.status === 'pending')
+        .map((item) => item.key),
+    );
+    this.pending = this.captures
+      .filter((item) => pending.has(item.key))
+      .map((item) => item.source);
   }
   onDidChangeStatus(listener: (status: PollingStatus) => void): Disposable {
     this.listeners.add(listener);
@@ -87,10 +144,13 @@ export class PollingController implements Disposable {
         : 60,
     };
     this.pending = [];
+    this.captures = [];
+    this.accountId = undefined;
     this.update({
       phase: options.active ? 'polling' : 'paused',
       knownCount: 0,
       pendingCount: 0,
+      captureCount: 0,
     });
     if (options.active) void this.pollNow();
   }
@@ -118,22 +178,25 @@ export class PollingController implements Disposable {
           });
           if (!current()) return;
           storage = true;
-          const previous = decodeIndex(this.store.read(result.account.id));
-          const { index } = reconcilePolling(
-            previous,
-            result,
-            options.includePrivate,
-            startedAt,
-          );
-          await this.store.write(result.account.id, index);
-          if (!current()) return;
-          this.pending = index.pending.filter(
-            (item) => options.includePrivate || item.accessMode === 'public',
-          );
+          const index = await this.store.update(result.account.id, (value) => {
+            if (!current()) return undefined;
+            const previous = decodeIndex(value);
+            const { index } = reconcilePolling(
+              previous,
+              result,
+              options.includePrivate,
+              startedAt,
+            );
+            return capturePending(index, startedAt);
+          });
+          if (!index || !current()) return;
+          this.accountId = result.account.id;
+          this.loadCaptures(index, options.includePrivate);
           this.update({
             phase: result.complete ? 'idle' : 'partial',
             knownCount: index.known.length + index.legacyKnownIds.length,
             pendingCount: this.pending.length,
+            captureCount: this.captures.length,
             lastCheckedAt: new Date(this.now()).toISOString(),
           });
         } catch (error) {
@@ -185,6 +248,8 @@ export class PollingController implements Disposable {
     this.generation++;
     this.timer?.dispose();
     this.pending = [];
+    this.captures = [];
+    this.accountId = undefined;
     this.listeners.clear();
   }
 }

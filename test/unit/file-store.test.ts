@@ -1,0 +1,105 @@
+import assert from 'node:assert/strict';
+import test, { type TestContext } from 'node:test';
+import { mkdtemp, readFile, writeFile, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { FilePollingStore } from '../../src/polling/file-store';
+import { decodeIndex } from '../../src/polling/index';
+
+async function fixture(t: TestContext) {
+  const directory = await mkdtemp(join(tmpdir(), 'pr-pokemon-sync-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  return directory;
+}
+
+test('atomic store migrates legacy only once and a second instance reads committed state', async (t) => {
+  const directory = await fixture(t);
+  const legacy = { version: 1, known: [1], pending: [], baselines: {} };
+  const first = new FilePollingStore(directory, () => legacy);
+  await first.update(123, (value) => decodeIndex(value));
+  const second = new FilePollingStore(directory, () => {
+    throw new Error('Legacy must not replace authoritative data');
+  });
+  const saved = await second.update(123, (value) => decodeIndex(value));
+  assert.deepEqual(saved?.legacyKnownIds, [1]);
+  assert.equal(saved?.version, 3);
+  assert.deepEqual(await readdir(directory), ['account-123.json']);
+  assert.equal(legacy.version, 1);
+});
+
+test('parallel window writers cannot overwrite one another; busy writer retries from latest state', async (t) => {
+  const directory = await fixture(t);
+  const stores = [
+    new FilePollingStore(directory, () => undefined),
+    new FilePollingStore(directory, () => undefined),
+  ];
+  const results = await Promise.allSettled(
+    stores.map((store, i) =>
+      store.update(123, (value) => {
+        const index = decodeIndex(value);
+        return { ...index, legacyKnownIds: [...index.legacyKnownIds, i + 1] };
+      }),
+    ),
+  );
+  assert.ok(results.some((result) => result.status === 'fulfilled'));
+  for (let i = 0; i < results.length; i++) {
+    if (results[i]?.status === 'rejected')
+      await stores[i]!.update(123, (value) => {
+        const index = decodeIndex(value);
+        return { ...index, legacyKnownIds: [...index.legacyKnownIds, i + 1] };
+      });
+  }
+  const saved = JSON.parse(
+    await readFile(join(directory, 'account-123.json'), 'utf8'),
+  );
+  assert.deepEqual(saved.legacyKnownIds.sort(), [1, 2]);
+});
+
+test('transform failure and cancellation leave the durable snapshot unchanged and release locks', async (t) => {
+  const directory = await fixture(t);
+  const store = new FilePollingStore(directory, () => undefined);
+  await store.update(123, decodeIndex);
+  const path = join(directory, 'account-123.json');
+  const before = await readFile(path, 'utf8');
+  await assert.rejects(
+    store.update(123, () => {
+      throw new Error('Rejected transaction');
+    }),
+  );
+  assert.equal(await store.update(123, () => undefined), undefined);
+  assert.equal(await readFile(path, 'utf8'), before);
+  assert.deepEqual(await readdir(directory), ['account-123.json']);
+});
+
+test('corrupt or unsupported durable snapshots never fall back to legacy or reset progress', async (t) => {
+  const directory = await fixture(t);
+  const store = new FilePollingStore(directory, () => undefined);
+  const path = join(directory, 'account-123.json');
+  for (const content of ['not JSON', '{"version":999}']) {
+    await writeFile(path, content);
+    await assert.rejects(store.update(123, decodeIndex));
+    assert.equal(await readFile(path, 'utf8'), content);
+    assert.deepEqual(await readdir(directory), ['account-123.json']);
+  }
+});
+
+test('existing and orphan locks fail closed without deleting files owned by another writer', async (t) => {
+  const directory = await fixture(t);
+  const path = join(directory, 'account-123.json.lock');
+  await writeFile(path, 'orphan or active writer');
+  const store = new FilePollingStore(directory, () => undefined);
+  await assert.rejects(store.update(123, decodeIndex));
+  assert.equal(await readFile(path, 'utf8'), 'orphan or active writer');
+  assert.deepEqual(await readdir(directory), ['account-123.json.lock']);
+});
+
+test('invalid account IDs and invalid transaction output are rejected without durable changes', async (t) => {
+  const directory = await fixture(t);
+  const store = new FilePollingStore(directory, () => undefined);
+  for (const id of [0, -1, 1.5, Number.NaN])
+    await assert.rejects(store.update(id, decodeIndex));
+  await assert.rejects(
+    store.update(123, () => ({ ...decodeIndex(undefined), known: ['bad'] })),
+  );
+  assert.deepEqual(await readdir(directory), []);
+});
