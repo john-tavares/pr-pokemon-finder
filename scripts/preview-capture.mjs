@@ -73,7 +73,9 @@ const server = createServer(async (request, response) => {
         remoteArtwork:
           !url.searchParams.has('offline') && previewSprites.size > 0,
         nonce: 'isolated-development-preview',
-        scriptUri: '/pokedex.js',
+        scriptUri: url.searchParams.has('offline')
+          ? '/pokedex.js?offline'
+          : '/pokedex.js',
         styleUri: '/pokedex.css',
         cspSource: "'self'",
       }),

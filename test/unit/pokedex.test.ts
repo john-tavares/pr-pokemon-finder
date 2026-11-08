@@ -26,7 +26,7 @@ test('Pokédex renders every persisted reward with source, date and independent 
   assert.match(html, /PIKACHU/);
   assert.match(html, /ANIMAÇÃO PENDENTE/);
   assert.match(html, /demo\/pokedex-ui #2/);
-  assert.match(html, /Fechado · Público/);
+  assert.match(html, /Fechado · Consulta pública/);
   assert.match(html, /2026-11-08 12:00:00/);
   assert.match(html, /Merge ou fechamento/);
   assert.match(html, /connect-src 'none'/);

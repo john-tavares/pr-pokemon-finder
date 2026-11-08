@@ -2,6 +2,10 @@
 
 ## 0.0.2 — Unreleased
 
+- Open the Pokédex from a completed capture without losing or duplicating rewards;
+  demo captures open only the synthetic collection.
+- Avoid collection-read contention with capture acknowledgement writes.
+
 - Add the FireRed-inspired Pokédex with capture source details, paging, offline
   fallback, account/scope isolation and a safe demo command.
 - Browse global rewards by originating repository with no workspace configuration.

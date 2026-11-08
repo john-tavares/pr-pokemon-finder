@@ -12,7 +12,7 @@ the account-global Pokédex is available from its status-bar button or **Open Po
 
 ## Test your first capture
 
-Today's implementation stack is documented per story, starting with
+The 2026-11-08 implementation stack is documented per story, starting with
 [US 10: deterministic assignments](docs/us-10-deterministic-assignment.md).
 Screenshots below use sanitized demo data.
 
@@ -37,6 +37,11 @@ opens rewards by source across repositories, without configuring any remotes.
 [US 21](docs/us-21-pokedex.md) adds the visual Pokédex, source details, offline
 fallback and **Preview Pokédex** (no login or collection changes).
 
+[US 19](docs/us-19-capture-pokedex-flow.md) completes the encounter → capture →
+Pokédex handoff. The result offers **POKéDEX** after the animation completes.
+
+See the [complete nine-PR stack and acceptance checklist](docs/implementation-stack-2026-11-08.md).
+
 1. Install the generated VSIX or run this checkout with **F5**.
 2. Run **PR Pokémon Finder: Preview Capture Animation** to see a Pikachu demo
    immediately, without GitHub sign-in or changes to the collection.
@@ -45,7 +50,8 @@ fallback and **Preview Pokédex** (no login or collection changes).
    New Pull Requests Now**. Search indexing may delay detection.
 5. The FireRed-style scene opens beside the editor and **waits for you**. The Pokémon
    stays visible until you select **CAPTURAR**, which starts throw → shakes → success.
-   Click **CONTINUAR** afterward to advance to the next encounter.
+   Click **CONTINUAR** afterward to advance to the next encounter, or **POKéDEX**
+   to open your saved collection. In the demo, POKéDEX opens only example data.
 
 Captures are saved **before** animation. Skip/close never loses a Pokémon; merge
 is not required. Closing before the capture completes or choosing **MAIS TARDE**

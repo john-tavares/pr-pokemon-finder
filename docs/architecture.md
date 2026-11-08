@@ -282,7 +282,7 @@ Do not erase records because a request failed or a result page is incomplete.
 
 - Policy for revoked repository access beyond preserving captured history.
 - Future species-pool expansion, rarity, and Shiny odds without changing prior assignments.
-- Single-consumer presentation coordination across windows and cross-profile behavior.
+- Cross-profile collection behavior beyond VS Code's profile-global storage.
 - Whether GitHub Enterprise is in the initial supported scope.
 - Further accessibility/scene customization beyond the implemented Pokédex screen.
 - Asset sources, distribution permissions, attribution, and offline behavior.
