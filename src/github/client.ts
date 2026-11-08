@@ -2,6 +2,15 @@ export interface AccessTokenProvider {
   getAccessToken(): Promise<string | undefined>;
 }
 
+/** Fixed transport policy: there is no configurable proxy or custom backend. */
+export const GITHUB_API_POLICY = Object.freeze({
+  origin: 'https://api.github.com',
+  method: 'GET',
+  version: '2022-11-28',
+  timeoutMilliseconds: 10_000,
+  maximumCooldownSeconds: 86_400,
+} as const);
+
 export type GitHubErrorCode =
   | 'authentication-required'
   | 'authentication-expired'
@@ -137,7 +146,12 @@ export class GitHubClient {
       throw new GitHubApiError('invalid-response');
     }
     const canonical = parsePullRequestUrl(data.html_url);
-    if (!canonical || canonical.number !== number)
+    if (
+      !canonical ||
+      canonical.number !== number ||
+      canonical.owner.toLowerCase() !== owner.toLowerCase() ||
+      canonical.repository.toLowerCase() !== repository.toLowerCase()
+    )
       throw new GitHubApiError('invalid-response');
     return {
       ...reference,
@@ -185,17 +199,17 @@ export class GitHubClient {
 
     let response: Response;
     try {
-      response = await this.request(`https://api.github.com${path}`, {
-        method: 'GET',
+      response = await this.request(`${GITHUB_API_POLICY.origin}${path}`, {
+        method: GITHUB_API_POLICY.method,
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
+          'X-GitHub-Api-Version': GITHUB_API_POLICY.version,
           'User-Agent': 'pr-pokemon-finder',
         },
         // Do not forward authorization to a redirect target supplied by a response.
         redirect: 'error',
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(GITHUB_API_POLICY.timeoutMilliseconds),
       });
     } catch {
       throw new GitHubApiError('network');
@@ -225,12 +239,15 @@ export class GitHubClient {
         rateMessage
       ) {
         const reset = Number(response.headers.get('x-ratelimit-reset')) * 1000;
-        const wait = Math.max(
-          Number.isFinite(retry) && retry > 0 ? retry : 0,
-          remaining === '0' && Number.isFinite(reset)
-            ? Math.ceil((reset - this.now()) / 1000)
-            : 0,
-          60,
+        const wait = Math.min(
+          GITHUB_API_POLICY.maximumCooldownSeconds,
+          Math.max(
+            Number.isFinite(retry) && retry > 0 ? retry : 0,
+            remaining === '0' && Number.isFinite(reset)
+              ? Math.ceil((reset - this.now()) / 1000)
+              : 0,
+            60,
+          ),
         );
         this.blockedUntil = this.now() + wait * 1000;
         throw new GitHubApiError('rate-limited', wait);

@@ -1,7 +1,12 @@
 import * as vscode from 'vscode';
 import type { AuthenticationController } from '../auth/authentication';
 import { SIGN_IN_COMMAND } from '../auth/status';
-import { GitHubApiError, GitHubClient, parsePullRequestUrl } from './client';
+import {
+  GitHubApiError,
+  GitHubClient,
+  parsePullRequestUrl,
+  GITHUB_API_POLICY,
+} from './client';
 
 export const CHECK_CONNECTION_COMMAND = 'prPokemonFinder.checkGitHubConnection';
 export const INSPECT_PR_COMMAND = 'prPokemonFinder.inspectPullRequest';
@@ -61,6 +66,11 @@ export function registerGitHubCommands(
   const handleError = createGitHubErrorHandler(authentication);
 
   context.subscriptions.push(
+    vscode.commands.registerCommand('prPokemonFinder.showNetworkPolicy', () =>
+      vscode.window.showInformationMessage(
+        `GitHub: ${GITHUB_API_POLICY.method} ${GITHUB_API_POLICY.origin}, API ${GITHUB_API_POLICY.version}, ${GITHUB_API_POLICY.timeoutMilliseconds / 1000}s timeout. Native VS Code authentication; no hosted backend. Optional artwork uses raw.githubusercontent.com without credentials. Collection data stays local.`,
+      ),
+    ),
     vscode.commands.registerCommand(CHECK_CONNECTION_COMMAND, async () => {
       try {
         const user = await client.getAuthenticatedUser();
