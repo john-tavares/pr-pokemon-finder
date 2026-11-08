@@ -64,8 +64,8 @@ export function verifyVsix(bytes) {
   }
   for (const required of [
     'extension/package.json',
-    'extension/README.md',
-    'extension/LICENSE',
+    'extension/readme.md',
+    'extension/LICENSE.txt',
     'extension/THIRD_PARTY_NOTICES.md',
     'extension/media/OFL-VT323.txt',
     'extension/media/VT323-Regular.ttf',
