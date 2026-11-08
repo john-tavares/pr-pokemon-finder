@@ -31,6 +31,9 @@ resume without overlapping scenes.
 See [installation and VSIX verification](docs/us-18-installation.md) (US 18).
 Version **0.0.2** is a local pre-release; no Marketplace publication is implied.
 
+[US 23](docs/us-23-multiple-repositories.md): **Browse Repository Captures**
+opens rewards by source across repositories, without configuring any remotes.
+
 1. Install the generated VSIX or run this checkout with **F5**.
 2. Run **PR Pokémon Finder: Preview Capture Animation** to see a Pikachu demo
    immediately, without GitHub sign-in or changes to the collection.

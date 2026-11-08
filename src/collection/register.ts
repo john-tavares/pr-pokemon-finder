@@ -5,6 +5,8 @@ import { privateRepositoriesEnabled } from '../auth/vscode-session-provider';
 import type { PollingController } from '../polling/controller';
 import { FilePollingStore } from '../polling/file-store';
 import { CollectionController } from './controller';
+import { groupByRepository } from './repositories';
+import { pokemonName } from '../presentation/catalog';
 
 export function registerCollection(
   context: vscode.ExtensionContext,
@@ -16,6 +18,12 @@ export function registerCollection(
     (id) => context.globalState.get(`polling.v1.account.${id}`),
   );
   const collection = new CollectionController((id) => store.readSnapshot(id));
+  let viewRevision = 0;
+  context.subscriptions.push(
+    collection.onDidChange(() => {
+      viewRevision++;
+    }),
+  );
   const refresh = async () => {
     const nativeId = authentication.accountId;
     const signedIn =
@@ -60,6 +68,45 @@ export function registerCollection(
       )
         void refresh();
     }),
+    vscode.commands.registerCommand(
+      'prPokemonFinder.browseRepositoryCaptures',
+      async () => {
+        await refresh();
+        const revision = viewRevision;
+        const groups = groupByRepository(collection.state.entries);
+        if (!groups.length) {
+          await vscode.window.showInformationMessage(
+            'No loaded repository captures. Sign in and complete an initial synchronization; new PRs then grant rewards across all repositories.',
+          );
+          return;
+        }
+        const repository = await vscode.window.showQuickPick(
+          groups.map((group) => ({
+            label: group.label,
+            description: `${group.entries.length} local rewards`,
+            group,
+          })),
+          { title: 'PR Pokémon Finder: Repository Captures' },
+        );
+        if (!repository || revision !== viewRevision) return;
+        const reward = await vscode.window.showQuickPick(
+          repository.group.entries.map((item) => ({
+            label: pokemonName(item.capture.pokemon.speciesId),
+            description: `#${item.capture.source.number} · ${item.presentation === 'pending' ? 'Animation pending' : 'Animation shown'}`,
+            detail: item.capture.source.url,
+            item,
+          })),
+          {
+            title: repository.group.label,
+            placeHolder: 'Choose a reward to open its source PR.',
+          },
+        );
+        if (reward && revision === viewRevision)
+          await vscode.env.openExternal(
+            vscode.Uri.parse(reward.item.capture.source.url),
+          );
+      },
+    ),
     vscode.commands.registerCommand(
       'prPokemonFinder.showCollectionStatus',
       async () => {
